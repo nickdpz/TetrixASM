@@ -1,4 +1,4 @@
-        INCLUDE 'MC9S08JM16.INC' 
+	INCLUDE 'MC9S08JM16.INC' 
 ; Based on CPU DB MC9S08JM16_48, version 3.00.048 (RegistersPrg V2.32)
 
 ; ###################################################################
@@ -3307,23 +3307,23 @@ INICIO:	;----------CONFIGURACION RELOJ------------------------------------------
 		MOV		#00001000B,	PTCDD			;Configuracion del reloj del contador
 ;-------------------------------------------------------------------------------
 ;------------------CONFIGURACION LCD--------------------------------------------
-		;LDHX	#50000D
-		;JSR		TIEMPO		
-		;MOV		#0FFH,	PTEDD			;Configuramos el puerto E todo como salidas
-		;MOV		#3,		PTDDD			;Configuramos bits 0 y 1 del puerto D como salidas
-		;BCLR	ENABLE,	PTDD				;Mandamos el bit 1 del registro D a 0
-		;MOV #00111000B,	PTED			;Enviamos el comando para colocar bus a 8 BITS, las 2 lineas habilitadas y matriz de 5x7 en cada cuadro
-		;JSR		COMANDO					;Saltamos a sub rutina para enviar el comando
-		;MOV	#00000110B,	PTED			;Enviamos el comando para escribir de izquierda a derecha y display estático
-		;JSR		COMANDO					;Saltamos a sub turtina para enviar el comando
-		;MOV	#00001100B,	PTED			;Enviamos el comando para encender el display, apagar el cursor y mantener el cursor estático
-		;JSR		COMANDO					;Saltamos a sub rutina para enviar el comando
-		;MOV #00000001B,	PTED			;Enviamos el comando para borrar el display
-		;JSR		COMANDO
-		;LDHX	#20000D
-		;JSR		TIEMPO
-		;MOV	#10000000B,	PTED			;Enviamos comando para mover el cursor a la posición 2 en la línea 1
-		;JSR		COMANDO
+		LDHX	#50000D
+		JSR		TIEMPO		
+		MOV		#0FFH,	PTEDD			;Configuramos el puerto E todo como salidas
+		MOV		#3,		PTDDD			;Configuramos bits 0 y 1 del puerto D como salidas
+		BCLR	ENABLE,	PTDD				;Mandamos el bit 1 del registro D a 0
+		MOV #00111000B,	PTED			;Enviamos el comando para colocar bus a 8 BITS, las 2 lineas habilitadas y matriz de 5x7 en cada cuadro
+		JSR		COMANDO					;Saltamos a sub rutina para enviar el comando
+		MOV	#00000110B,	PTED			;Enviamos el comando para escribir de izquierda a derecha y display estático
+		JSR		COMANDO					;Saltamos a sub turtina para enviar el comando
+		MOV	#00001100B,	PTED			;Enviamos el comando para encender el display, apagar el cursor y mantener el cursor estático
+		JSR		COMANDO					;Saltamos a sub rutina para enviar el comando
+		MOV #00000001B,	PTED			;Enviamos el comando para borrar el display
+		JSR		COMANDO
+		LDHX	#20000D
+		JSR		TIEMPO
+		MOV	#10000000B,	PTED			;Enviamos comando para mover el cursor a la posición 2 en la línea 1
+		JSR		COMANDO
 		LDHX	#0
 LINEA1: LDA 	TABLAF1,X
 		CBEQA	#0FFH,LINEA2
@@ -3331,7 +3331,7 @@ LINEA1: LDA 	TABLAF1,X
 		JSR		DATOLCD
 		AIX 	#1
 		JMP		LINEA1
-LINEA2:	MOV		#110001011B,PTED
+LINEA2:	MOV		#11001011B,PTED
 		JSR     COMANDO
 		LDHX 	#0			
 ;--------------------------------------		
@@ -3339,9 +3339,26 @@ LINEA2:	MOV		#110001011B,PTED
 		MOV		#0H,PTFD
 		MOV		#0H,PTBD;
 		BCLR    CLK,PTGD;
+		MOV 	#0FFH,TABLERO
+		MOV 	#0FFH,TABLERO+1
+		MOV 	#0FFH,TABLERO+2
+		MOV 	#0FFH,TABLERO+3
+		MOV 	#0FFH,TABLERO+4
+		MOV 	#0FFH,TABLERO+5
+		MOV 	#0FFH,TABLERO+6
+		MOV 	#0FFH,TABLERO+7
+		MOV 	#0FFH,TABLERO+8
+		MOV 	#0FFH,TABLERO+9
+		MOV 	#0FFH,TABLERO+10
+		MOV 	#0FFH,TABLERO+11
+		MOV 	#0FFH,TABLERO+12
+		MOV 	#0FFH,TABLERO+13
+		MOV 	#0FFH,TABLERO+14
+		MOV 	#0FFH,TABLERO+15
+		MOV 	#0FFH,TABLERO+16
 ;------------------------------------------
 ;----------------CICLO PRINCIPAL-----------		
-CICLO:	
+CICLO:	JSR		VISUAL;
 		JMP 	CICLO;
 ;----------------------------------------------------------------------
 ;-------------------INTERRUPCION IRQ------------------------------------		
@@ -3353,6 +3370,25 @@ INT_KBI:
 ;--------VISUALIZACION DINAMICA ------------------------------
 VISUAL:	MOV		#10H,CONT
 CICLOV:	MOV		#0H,PTCD
+		;-------------
+		LDHX	#50000D
+		JSR	    TIEMPO;
+		LDHX	#50000D
+		JSR	    TIEMPO;
+		LDHX	#50000D
+		JSR	    TIEMPO;
+		LDHX	#50000D
+		JSR	    TIEMPO;
+		LDHX	#50000D
+		JSR	    TIEMPO;
+		LDHX	#50000D
+		JSR	    TIEMPO;
+		LDHX	#50000D
+		JSR	    TIEMPO;
+		LDHX	#50000D
+		JSR	    TIEMPO;
+	
+		;-------------
 		LDX		CONT;
 		LDA		TABLERO,X
 		AND		#0FH;
@@ -3360,9 +3396,25 @@ CICLOV:	MOV		#0H,PTCD
 		LDA		TABLERO,X
 		AND		#33H;
 		STA		PTFD
-		MOV		#00001000B,	PTCD			;Configuracion del reloj del contador
-		LDHX	#1000D
+		MOV		#08H,PTCD			;Configuracion del reloj del contador
+		;-------------
+		LDHX	#50000D
 		JSR	    TIEMPO;
+		LDHX	#50000D
+		JSR	    TIEMPO;
+		LDHX	#50000D
+		JSR	    TIEMPO;
+		LDHX	#50000D
+		JSR	    TIEMPO;
+		LDHX	#50000D
+		JSR	    TIEMPO;
+		LDHX	#50000D
+		JSR	    TIEMPO;
+		LDHX	#50000D
+		JSR	    TIEMPO;
+		LDHX	#50000D
+		JSR	    TIEMPO;
+		;-------------
 		DBNZ	CONT,CICLOV
 		RTS
 
