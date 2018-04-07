@@ -3263,16 +3263,18 @@ LOCK	EQU	6		;Bit 6 del registro MCGSC
 		ORG 	0B0H  ;Direccion de RAM  (Variables)
 			
 TABLERO   DS 21
-TABLERO_F DS 21 
+CUADRO 	  DS 4 
 CONT      DS 1
+CONTP	  DS 1
 FILA_C    DS 1
-COLM_C    DS 1
+COLUM_C    DS 1
 PUNTAJE   DS 2
 PUNTAJE_M DS 2
 NIVEL     DS 1  
 GAME_OVER DS 1
 START     DS 1
 PAUSE     DS 1
+AUX		  DS 1
 
 		ORG		0C000H; Direccion de RAM  (Memoria para programa)
 
@@ -3333,33 +3335,64 @@ LINEA1: LDA 	TABLAF1,X
 		JMP		LINEA1
 LINEA2:	MOV		#11001011B,PTED
 		JSR     COMANDO
-		LDHX 	#0			
+		LDHX 	#0
+		
 ;--------------------------------------		
-;----------------Limpia Variables------
-		MOV		#0H,PTFD
+;----------LIMPIA VARIABLES------------
+		MOV		#0H,PTFD;
 		MOV		#0H,PTBD;
 		BCLR    CLK,PTGD;
-		MOV 	#0FFH,TABLERO
-		MOV 	#0FFH,TABLERO+1
-		MOV 	#0FFH,TABLERO+2
-		MOV 	#0FFH,TABLERO+3
-		MOV 	#0FFH,TABLERO+4
-		MOV 	#0FFH,TABLERO+5
-		MOV 	#0FFH,TABLERO+6
-		MOV 	#0FFH,TABLERO+7
-		MOV 	#0FFH,TABLERO+8
-		MOV 	#0FFH,TABLERO+9
-		MOV 	#0FFH,TABLERO+10
-		MOV 	#0FFH,TABLERO+11
-		MOV 	#0FFH,TABLERO+12
-		MOV 	#0FFH,TABLERO+13
-		MOV 	#0FFH,TABLERO+14
-		MOV 	#0FFH,TABLERO+15
-		MOV 	#0FFH,TABLERO+16
+		;-----VACIA TABLERO PRINCIPAL
+		MOV 	#0FFH,TABLERO; PISO
+		MOV 	#0H,TABLERO+1;
+		MOV 	#0H,TABLERO+2;
+		MOV 	#0H,TABLERO+3;
+		MOV 	#0H,TABLERO+4;
+		MOV 	#0H,TABLERO+5;
+		MOV 	#0H,TABLERO+6;
+		MOV 	#0H,TABLERO+7;
+		MOV 	#0H,TABLERO+8;
+		MOV 	#0H,TABLERO+9;
+		MOV 	#0H,TABLERO+10;
+		MOV 	#0H,TABLERO+11;
+		MOV 	#0H,TABLERO+12;
+		MOV 	#0H,TABLERO+13;
+		MOV 	#0H,TABLERO+14;
+		MOV 	#0H,TABLERO+15;
+		MOV		#0H,TABLERO+16;
+		MOV		#0H,TABLERO+17;
+		MOV		#0H,TABLERO+18;
+		MOV 	#0H,TABLERO+19;
+		MOV 	#0H,TABLERO+20;
+		
+		MOV		#0H,CUADRO
+		MOV		#0H,CUADRO+1
+		MOV		#0H,CUADRO+2
+		MOV		#0H,CUADRO+3
+		;----------------------
+		MOV		#09H,FILA_C
+		MOV		#0H,COLUM_C;
+		MOV		#0FFH,CONTP;
 ;------------------------------------------
 ;----------------CICLO PRINCIPAL-----------		
 CICLO:	JSR		VISUAL;
-		JMP 	CICLO;
+		DBNZ    CONTP,CICLO; SALTE A CICLO O HAGA LA LOGICA
+;		MOV 	#0FFH,CONTP;
+		;------------BORRRATODO-----------
+;		MOV		#0H,CONTP;
+;		MOV		#20H,FILA_C;
+		;-------------------ESCRIBE EN POSICION DESEADA---------
+;		CAE:	LDX		FILA_C		;
+;		INCX				;EN X QUE DA EL FILA_C+1
+;		LDA		TABLERO_F,X	;CARGA EN A LO QUE FILA_C+1
+;		LDX		FILA_C		;CARGA EN X FILA_C
+;		STA		TABLERO_F,X	;CARGA EN FILA_C LO QUE ESTABA EN A (FILA_C+1)
+;		LDA		FILA_C		;CARGA FILA_C EN A 
+;		INCA				;INCREMENTA A (FILA C)
+;		STA     FILA_C		;CARGA A EN FILA C ()
+;		LDA		#19D		;VALOR MAXIMO
+;		CBEQ	FILA_C,END	;	
+END:	JMP 	CICLO;
 ;----------------------------------------------------------------------
 ;-------------------INTERRUPCION IRQ------------------------------------		
 INT_IRQ:
@@ -3368,56 +3401,45 @@ INT_IRQ:
 INT_KBI:
 ;--------------ORGANIZACION Y ENMASCARADO DATOS LEIDOS---------------------	
 ;--------VISUALIZACION DINAMICA ------------------------------
-VISUAL:	MOV		#10H,CONT
-CICLOV:	MOV		#0H,PTCD
+VISUAL:	MOV		#0FH,CONT
+CICLOV:	MOV		#0H,PTCD; POR SEGURIDAD LO PONEMOS EN CERO
 		;-------------
-		LDHX	#50000D
+		LDHX	#50D		;HACEMOS UN PERIODO DE 50 us
+		;LDHX	#1H
 		JSR	    TIEMPO;
-		LDHX	#50000D
-		JSR	    TIEMPO;
-		LDHX	#50000D
-		JSR	    TIEMPO;
-		LDHX	#50000D
-		JSR	    TIEMPO;
-		LDHX	#50000D
-		JSR	    TIEMPO;
-		LDHX	#50000D
-		JSR	    TIEMPO;
-		LDHX	#50000D
-		JSR	    TIEMPO;
-		LDHX	#50000D
-		JSR	    TIEMPO;
-	
+		;-------------OR TABLERO CUADRITO
+		LDX		CONT		;CARGA X CON CONTADOR
+		INCX				;LO AUMENTA PARA UQE ME SIRVA DBNZ
+		LDA		FILA_C		;
+		CBEQ	CONT,VPR	;
+		INCA				;F+1
+		CBEQ	CONT,VPR	;
+		INCA				;F+2
+		CBEQ	CONT,VPR	;
+		INCA				;F+3
+		CBEQ	CONT,VPR;
+		JMP		VAND  
+VPR:	LDA		CONT		;	
+		SUB     FILA_C		;
+		PSHA
+		LDA		TABLERO,X	   	;X NO SE MODIFICA 
+		PULX
+		EOR		CUADRO,X				;INCREMENTO PARA COLUMNA+3 EN A 
+VAND:	PSHA
+		AND		#0FH	;SE ENMASCARA
+		STA		PTBD; IMPRIME EN EL PUERTO B
+		;----------------
+		PULA
+		AND		#33H; EMASCARAMIENTO 00110011
+		STA		PTFD;IMPRIME EN EL PUERTO F
+		MOV		#08H,PTCD			;Configuracion UP del reloj del contador
 		;-------------
-		LDX		CONT;
-		LDA		TABLERO,X
-		AND		#0FH;
-		STA		PTBD
-		LDA		TABLERO,X
-		AND		#33H;
-		STA		PTFD
-		MOV		#08H,PTCD			;Configuracion del reloj del contador
-		;-------------
-		LDHX	#50000D
-		JSR	    TIEMPO;
-		LDHX	#50000D
-		JSR	    TIEMPO;
-		LDHX	#50000D
-		JSR	    TIEMPO;
-		LDHX	#50000D
-		JSR	    TIEMPO;
-		LDHX	#50000D
-		JSR	    TIEMPO;
-		LDHX	#50000D
-		JSR	    TIEMPO;
-		LDHX	#50000D
-		JSR	    TIEMPO;
-		LDHX	#50000D
+		LDHX	#32H; TIEMPO EN ALTO 50 D 
+		;LDHX	#1H
 		JSR	    TIEMPO;
 		;-------------
 		DBNZ	CONT,CICLOV
 		RTS
-
 ;--------INICIO RUTINA DE TIEMPO------------------------------
 TIEMPO: AIX		#-1D         ; pierde tiempo
 		CPHX	#0H          ; compara HX con 0
@@ -3430,7 +3452,6 @@ DATOLCD:BSET	RS,		PTDD				;Mandamos el bit RS del LCD a 1 para saber que vamos a
 SALTOLCD:
 		BSET	ENABLE,	PTDD				;Mandamos el pulso en alto al bit ENABLE del LCD
 		NOP									;Con esto esperamos tiempo en alto del bit ENABLE		
-		NOP
 		NOP
 		NOP									;Con esto esperamos tiempo en alto del bit ENABLE		
 		NOP
