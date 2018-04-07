@@ -3275,6 +3275,9 @@ GAME_OVER DS 1
 START     DS 1
 PAUSE     DS 1
 AUX		  DS 1
+SEM_1	  DS 1
+SEM_2	  DS 1
+	
 
 		ORG		0C000H; Direccion de RAM  (Memoria para programa)
 
@@ -3307,9 +3310,32 @@ INICIO:	;----------CONFIGURACION RELOJ------------------------------------------
 		MOV		#33H,	PTFDD			;Configuramos los pines F0,F1,F4,F5	como salidas	
 		MOV		#0FH,	PTBDD			;Configuramos los pines B0,B1,B2,B3	como salidas
 		MOV		#00001000B,	PTCDD			;Configuracion del reloj del contador
+;---------------------------------------------------------------------------------
+;------------------CONFIGURACION DE ALEATORIO-------------------------------------
+		LDA     SEM_1
+		ADD     PUNTAJE_M
+		STA     SEM_1
+		LDX     #100D
+		CLRH
+		DIV 
+		PSHH
+		PULA
+		CMP     #11D
+		BPL     CMP10_1
+		MOV     #13D,SEM_1
+CMP10_1:INC     SEM_2
+		CLRH
+		DIV 
+		PSHH
+		PULA
+		STA 	SEM_2
+		CMP     #11D
+		BPL     CMP10_2
+		MOV     #15D,SEM_1
+
 ;-------------------------------------------------------------------------------
 ;------------------CONFIGURACION LCD--------------------------------------------
-		LDHX	#50000D
+CMP10_2:LDHX	#50000D
 		JSR		TIEMPO		
 		MOV		#0FFH,	PTEDD			;Configuramos el puerto E todo como salidas
 		MOV		#3,		PTDDD			;Configuramos bits 0 y 1 del puerto D como salidas
@@ -3341,7 +3367,7 @@ LINEA2:	MOV		#11001011B,PTED
 ;----------LIMPIA VARIABLES------------
 		MOV		#0H,PTFD;
 		MOV		#0H,PTBD;
-		BCLR    CLK,PTGD;
+		MOV		#0H,PTCD
 		;-----VACIA TABLERO PRINCIPAL
 		MOV 	#0FFH,TABLERO; PISO
 		MOV 	#0H,TABLERO+1;
@@ -3365,33 +3391,22 @@ LINEA2:	MOV		#11001011B,PTED
 		MOV 	#0H,TABLERO+19;
 		MOV 	#0H,TABLERO+20;
 		
-		MOV		#0H,CUADRO
-		MOV		#0H,CUADRO+1
-		MOV		#0H,CUADRO+2
-		MOV		#0H,CUADRO+3
+		MOV		#0FH,CUADRO
+		MOV		#07H,CUADRO+1
+		MOV		#03H,CUADRO+2
+		MOV		#01H,CUADRO+3
 		;----------------------
-		MOV		#09H,FILA_C
+		MOV		#21D,FILA_C
 		MOV		#0H,COLUM_C;
 		MOV		#0FFH,CONTP;
+		MOV		#0H,PTCD; POR LO PONEMOS EN CERO
 ;------------------------------------------
 ;----------------CICLO PRINCIPAL-----------		
 CICLO:	JSR		VISUAL;
 		DBNZ    CONTP,CICLO; SALTE A CICLO O HAGA LA LOGICA
-;		MOV 	#0FFH,CONTP;
-		;------------BORRRATODO-----------
-;		MOV		#0H,CONTP;
-;		MOV		#20H,FILA_C;
-		;-------------------ESCRIBE EN POSICION DESEADA---------
-;		CAE:	LDX		FILA_C		;
-;		INCX				;EN X QUE DA EL FILA_C+1
-;		LDA		TABLERO_F,X	;CARGA EN A LO QUE FILA_C+1
-;		LDX		FILA_C		;CARGA EN X FILA_C
-;		STA		TABLERO_F,X	;CARGA EN FILA_C LO QUE ESTABA EN A (FILA_C+1)
-;		LDA		FILA_C		;CARGA FILA_C EN A 
-;		INCA				;INCREMENTA A (FILA C)
-;		STA     FILA_C		;CARGA A EN FILA C ()
-;		LDA		#19D		;VALOR MAXIMO
-;		CBEQ	FILA_C,END	;	
+		LDA		#2H;
+		JSR		MOVI;
+		MOV		#0AFH,CONTP;
 END:	JMP 	CICLO;
 ;----------------------------------------------------------------------
 ;-------------------INTERRUPCION IRQ------------------------------------		
@@ -3401,44 +3416,128 @@ INT_IRQ:
 INT_KBI:
 ;--------------ORGANIZACION Y ENMASCARADO DATOS LEIDOS---------------------	
 ;--------VISUALIZACION DINAMICA ------------------------------
-VISUAL:	MOV		#0FH,CONT
-CICLOV:	MOV		#0H,PTCD; POR SEGURIDAD LO PONEMOS EN CERO
+MOVI:	CBEQA	#0H,RIG;
+		CBEQA	#1H,LEF;
+		DEC		FILA_C;
+		LDX		FILA_C;
+		LDA		TABLERO,X
+		LDX		#0H;
+		AND		CUADRO,X
+		CBEQA	#0H,MAJ1
+		JMP		MREG
+MAJ1:	LDX		FILA_C;
+		DECX		  ;
+		LDA		TABLERO,X
+		LDX		#1H;
+		AND		CUADRO,X
+		CBEQA	#0H,MAJ2		
+		JMP		MREG
+MAJ2:	LDX		FILA_C;
+		DECX		  ;
+		DECX		  ; 
+		LDA		TABLERO,X
+		LDX		#2H;
+		AND		CUADRO,X
+		CBEQA	#0H,MAJ3		
+		JMP		MREG	
+MAJ3:	LDX		FILA_C;
+		DECX		  ;
+		DECX
+		DECX
+		LDA		TABLERO,X
+		LDX		#3H;
+		AND		CUADRO,X
+		CBEQA	#0H,MORTS		
+		JMP		MREG
+MORTS:	RTS				; POSICION VALIDA REGRESA PARA VISUALIZAR		
+MREG: 	INC		FILA_C	;
+		LDX		FILA_C
+		LDA		TABLERO,X
+		EOR		CUADRO;
+		STA		TABLERO,X
+		DEC		FILA_C		;DECREMENTA FILA PARA GUARDAR PERDIENDO PIBOTE 
+		LDX		FILA_C		;
+		LDA		TABLERO,X
+		EOR		CUADRO+1;
+		STA		TABLERO,X
+		DEC		FILA_C		;DECREMENTA FILA PARA GUARDAR PERDIENDO PIBOTE 
+		LDX		FILA_C		;
+		LDA		TABLERO,X
+		EOR		CUADRO+2;
+		STA		TABLERO,X
+		DEC		FILA_C		;DECREMENTA FILA PARA GUARDAR PERDIENDO PIBOTE 
+		LDX		FILA_C		;
+		LDA		TABLERO,X
+		EOR		CUADRO+3;
+		STA		TABLERO,X
+		MOV		#20D,FILA_C	;
+		RTS					;
+RIG:
+LEF:		
+
+VISUAL:	MOV		#1H,CONT;
+		MOV		#0H,PTCD	;Configuracion UP del reloj del contador		
+CICLOV:	
+		;------- AUMENTA CONTEO-----
+		LDA 	CONT
+		CBEQA   #1H,VSALTO	
+		MOV		#8H,PTCD	;POR LO PONEMOS EN CERO
+VSALTO:	;-------------
+		LDHX	#01FEH		; TIEMPO EN ALTO 50 D 
+		JSR	    TIEMPO		;	
 		;-------------
-		LDHX	#50D		;HACEMOS UN PERIODO DE 50 us
-		;LDHX	#1H
-		JSR	    TIEMPO;
-		;-------------OR TABLERO CUADRITO
-		LDX		CONT		;CARGA X CON CONTADOR
-		INCX				;LO AUMENTA PARA UQE ME SIRVA DBNZ
-		LDA		FILA_C		;
+		MOV		#0H,PTCD	;Configuracion UP del reloj del contador
+		;-------------
+		LDHX	#01FEH		;HACEMOS UN PERIODO DE 50 us
+		JSR	    TIEMPO		;	
+		LDA		FILA_C		
 		CBEQ	CONT,VPR	;
-		INCA				;F+1
+		DECA				;F+1
 		CBEQ	CONT,VPR	;
-		INCA				;F+2
+		DECA				;F+2
 		CBEQ	CONT,VPR	;
-		INCA				;F+3
+		DECA				;F+3
 		CBEQ	CONT,VPR;
+		LDX		CONT
+		LDA		TABLERO,X;
 		JMP		VAND  
-VPR:	LDA		CONT		;	
-		SUB     FILA_C		;
-		PSHA
-		LDA		TABLERO,X	   	;X NO SE MODIFICA 
+VPR:	LDA		FILA_C		;	
+		SUB     CONT		;
+		PSHA				;PONE EN LA PILA Z
+		LDX		FILA_C		;CARGA X CON CONTADOR
+		DECX	
+		LDA		TABLERO,X	;X NO SE MODIFICA 
 		PULX
-		EOR		CUADRO,X				;INCREMENTO PARA COLUMNA+3 EN A 
-VAND:	PSHA
-		AND		#0FH	;SE ENMASCARA
-		STA		PTBD; IMPRIME EN EL PUERTO B
+		EOR		CUADRO,X	;INCREMENTO PARA COLUMNA+3 EN A 
+VAND:	PSHA				;PONGO EN LA PILA A 
 		;----------------
-		PULA
-		AND		#33H; EMASCARAMIENTO 00110011
-		STA		PTFD;IMPRIME EN EL PUERTO F
-		MOV		#08H,PTCD			;Configuracion UP del reloj del contador
+		STA		AUX			;
+		MOV		#0H,PTFD	;
+		BRCLR	4H,AUX,AJ1	;
+		BSET	0H,PTFD		;
+AJ1:	BRCLR	5H,AUX,AJ2
+		BSET	1H,PTFD
+AJ2:	BRCLR	6H,AUX,AJ3
+		BSET	4H,PTFD
+AJ3:	BRCLR	7H,AUX,VC
+		BSET	5H,PTFD				
+VC:		PULA				;OBTENGO EL DATO
+		AND		#0FH		;SE ENMASCARA
+		STA		PTBD		; IMPRIME EN EL PUERTO B
+;-----------RENUEVA VARIABLE
+		LDA		CONT		;
+		INCA				;
+		STA		CONT		;		
+		CBEQA	#11H,VFIN	;
+		JMP 	CICLOV		;
+VFIN:	MOV		#08H,PTCD	;Configuracion UP del reloj del contador
 		;-------------
-		LDHX	#32H; TIEMPO EN ALTO 50 D 
-		;LDHX	#1H
+		LDHX	#01FEH		;HACEMOS UN PERIODO DE 50 us
 		JSR	    TIEMPO;
-		;-------------
-		DBNZ	CONT,CICLOV
+		LDA 	CONT
+		MOV		#0H,PTCD	;POR LO PONEMOS EN CERO
+		LDHX	#01EFH; TIEMPO EN ALTO 50 D 
+		JSR	    TIEMPO
 		RTS
 ;--------INICIO RUTINA DE TIEMPO------------------------------
 TIEMPO: AIX		#-1D         ; pierde tiempo
