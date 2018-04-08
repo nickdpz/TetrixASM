@@ -98,7 +98,7 @@ Tetris.obj.s19: $(BBL_SRCS) $(EXECUTABLES)
 
 # Other Targets
 clean:
-	-$(RM) $(S_DEPS_QUOTED) "./*/*.d"  $(BURNER_OUTPUT_OUTPUTS_QUOTED) $(ASM_UPPER_DEPS_QUOTED) "./*/*.obj"  $(EXECUTABLES_QUOTED) $(S_UPPER_DEPS_QUOTED) $(ProjDirPath)/FLASH/Tetris.obj $(ProjDirPath)/FLASH/Tetris.args $(ProjDirPath)/FLASH/Tetris.obj.args $(ProjDirPath)/FLASH/Tetris.obj.s19 $(ProjDirPath)/FLASH/Tetris.sx
+	-$(RM) $(S_DEPS_QUOTED) "./*/*.d"  $(BURNER_OUTPUT_OUTPUTS_QUOTED) $(ASM_UPPER_DEPS_QUOTED) "./*/*.obj"  $(EXECUTABLES_QUOTED) $(S_UPPER_DEPS_QUOTED) $(ProjDirPath)/FLASH/Tetris.obj
 	-@echo ' '
 
 .PHONY: all clean dependents explicit-dependencies warning-messages
