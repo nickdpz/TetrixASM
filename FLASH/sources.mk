@@ -52,4 +52,7 @@ OBJS_OS_FORMAT :=
 SUBDIRS := \
 Sources \
 Project_Settings/Linker_Files \
+PRUEBAS-ROTACION/Sources \
+PRUEBAS-ROTACION/Project_Settings/Linker_Files \
+PRUEBAS-ROTACION/FLASH \
 

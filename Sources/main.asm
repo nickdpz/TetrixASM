@@ -7,16 +7,6 @@ IRQACK	EQU	2
 ;LCD
 RS		EQU	0		;Define bit 0 del PTD
 ENABLE	EQU	1		;Define bit 1 del PTD
-;MATRIZ
-C0 		EQU 0		;Define bit 0 del PTB como columna C0
-C1		EQU 1		;Define bit 1 del PTB como columna C0
-C2		EQU 2		;Define bit 2 del PTB como columna C0
-C3		EQU 3		;Define bit 3 del PTB como columna C0
-C4		EQU 0		;Define bit 0 del PTF como columna C0
-C5		EQU 1		;Define bit 1 del PTF como columna C0
-C6		EQU 4		;Define bit 4 del PTF como columna C0
-C7		EQU 5		;Define bit 5 del PTF como columna C0
-CLK		EQU 5		;Define bit 4 del PTC CLK del contador
 
 ;RELOJ INTERNO
 LOCK	EQU	6		;Bit 6 del registro MCGSC
@@ -38,9 +28,9 @@ PAUSE     DS 1
 AUX		  DS 1
 SEM_1	  DS 1
 SEM_2	  DS 1
-FUENT	 DS	1	
-DEST	DS 1
-TEMP	DS 1
+FUENT	  DS	1	
+DEST	  DS 1
+TEMP 	  DS 1
 		ORG		0C000H; Direccion de RAM  (Memoria para programa)
 
 INICIO:	;----------CONFIGURACION RELOJ----------------------------------------------

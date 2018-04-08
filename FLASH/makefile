@@ -2,7 +2,7 @@
 # Automatically-generated file. Do not edit!
 ################################################################################
 
-#Progress monitor hint: 1
+#Progress monitor hint: 2
 first : all
 -include ../makefile.init
 
@@ -16,6 +16,9 @@ RM := "$(GNU_Make_Install_DirEnv)/rm" -f
 -include subdir.mk
 -include Sources/subdir.mk
 -include Project_Settings/Linker_Files/subdir.mk
+-include PRUEBAS-ROTACION/Sources/subdir.mk
+-include PRUEBAS-ROTACION/Project_Settings/Linker_Files/subdir.mk
+-include PRUEBAS-ROTACION/FLASH/subdir.mk
 -include objects.mk
 
 ifneq ($(MAKECMDGOALS),clean)
@@ -83,14 +86,14 @@ endif
 # Tool invocations
 Tetris.obj: $(ASM_SRCS)
 	@echo 'Building target: $@'
-	@echo 'Executing target #2 $@'
+	@echo 'Executing target #3 $@'
 	@echo 'Invoking: HCS08 Assembler'
 	"$(HC08ToolsEnv)/ahc08" -Objn"Tetris.obj" -ArgFile"Tetris.args" $(ASM_SRCS_QUOTED) $(ASM_SRCS_QUOTED)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
 Tetris.obj.s19: $(BBL_SRCS) $(EXECUTABLES)
-	@echo 'Executing target #3 $@'
+	@echo 'Executing target #4 $@'
 	@echo 'Invoking: S08 Burner'
 	"$(HC08ToolsEnv)/burner" -ArgFile"Tetris.obj.args" -f="$<" -env"ABS_FILE=$(strip $(EXECUTABLES_OS_FORMAT))"
 	@echo 'Finished building: $@'
@@ -98,7 +101,7 @@ Tetris.obj.s19: $(BBL_SRCS) $(EXECUTABLES)
 
 # Other Targets
 clean:
-	-$(RM) $(S_DEPS_QUOTED) "./*/*.d"  $(BURNER_OUTPUT_OUTPUTS_QUOTED) $(ASM_UPPER_DEPS_QUOTED) "./*/*.obj"  $(EXECUTABLES_QUOTED) $(S_UPPER_DEPS_QUOTED) $(ProjDirPath)/FLASH/Tetris.obj $(ProjDirPath)/FLASH/Tetris.args $(ProjDirPath)/FLASH/Tetris.obj.args $(ProjDirPath)/FLASH/Tetris.obj.s19 $(ProjDirPath)/FLASH/Tetris.sx
+	-$(RM) $(S_DEPS_QUOTED) "./*/*/*.d" "./*/*.d"  $(BURNER_OUTPUT_OUTPUTS_QUOTED) $(ASM_UPPER_DEPS_QUOTED) "./*/*/*.obj" "./*/*.obj"  $(EXECUTABLES_QUOTED) $(S_UPPER_DEPS_QUOTED) $(ProjDirPath)/FLASH/Tetris.obj $(ProjDirPath)/FLASH/Tetris.args $(ProjDirPath)/FLASH/Tetris.obj.args $(ProjDirPath)/FLASH/Tetris.obj.s19 $(ProjDirPath)/FLASH/Tetris.sx
 	-@echo ' '
 
 .PHONY: all clean dependents explicit-dependencies warning-messages
