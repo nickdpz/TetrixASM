@@ -53,26 +53,24 @@ INICIO:	;----------CONFIGURACION RELOJ------------------------------------------
 		TXS
 ;--------------CONFIGURACION IRQ----------------------------------------
 		MOV		#01110110B, IRQSC 
-		
 ;---------------CONFIGURACION TECLADO--------------------------------------------
-		;MOV		#7FH,	PTEDD			;Configuramos el puerto E todo como salidas
-		;LDA		#0CH			 	;HABILITAR RESISTENCIAS DE PULL UP G2-G3
-		;STA		PTGPE				;MODIFICA REGISTRO
-		;LDA		#30H			 	;HABILITAR  RESITENCIA PULL-UP B4-B5
-		;STA		PTBPE		
-		;LDA		#3
-		;STA		PTGDD			 	;CONFIGURAR PUERTO G0,G1	SALIDA
-		;MOV		#7FH,PTDDD		 ;PUERTO D COMO SALIDA
-		;MOV		#11110000B,KBIPE	;HABILITAR INTERRUPCIONES DE PUERTOS B4,B5,G2,G3
-		;BSET	KBACK, KBISC
-		;BSET	KBIE,  KBISC
+		MOV		#0H,PTGDD;
+		LDA		#0FH			 	;HABILITAR RESISTENCIAS DE PULL UP G2-G3
+		STA		PTGPE				;MODIFICA REGISTRO	
+		MOV		#11000011B,KBIPE	;HABILITAR INTERRUPCIONES DE PUERTOS
+		BSET	KBACK, KBISC
+		BSET	KBIE,  KBISC
+		CLI
 ;-------------------------------------------------------------------------------
 ;------------------CONFIGURACION PINES PARA MATRIX------------------------------
 		MOV		#33H,	PTFDD			;Configuramos los pines F0,F1,F4,F5	como salidas	
 		MOV		#0FH,	PTBDD			;Configuramos los pines B0,B1,B2,B3	como salidas
-		MOV		#00001000B,	PTCDD			;Configuracion del reloj del contador
+		MOV		#00011000B,	PTCDD			;Configuracion del reloj del contador
 ;---------------------------------------------------------------------------------
 ;------------------CONFIGURACION DE ALEATORIO-------------------------------------
+		MOV		#0H,PUNTAJE_M
+		MOV		#12H,SEM_1
+		MOV		#1CH,SEM_2
 		LDA     SEM_1
 		ADD     PUNTAJE_M
 		STA     SEM_1
@@ -96,9 +94,7 @@ CMP10_1:INC     SEM_2
 
 ;-------------------------------------------------------------------------------
 ;------------------CONFIGURACION LCD--------------------------------------------
-CMP10_2:LDHX	#50000D
-		JSR		TIEMPO		
-		MOV		#0FFH,	PTEDD			;Configuramos el puerto E todo como salidas
+CMP10_2:MOV		#0FFH,	PTEDD			;Configuramos el puerto E todo como salidas
 		MOV		#3,		PTDDD			;Configuramos bits 0 y 1 del puerto D como salidas
 		BCLR	ENABLE,	PTDD				;Mandamos el bit 1 del registro D a 0
 		MOV #00111000B,	PTED			;Enviamos el comando para colocar bus a 8 BITS, las 2 lineas habilitadas y matriz de 5x7 en cada cuadro
@@ -129,6 +125,21 @@ LINEA2:	MOV		#11001011B,PTED
 		MOV		#0H,PTFD;
 		MOV		#0H,PTBD;
 		MOV		#0H,PTCD
+		MOV		#0H,CONT;;Configuracion UP del reloj del contador		
+SINCR:	MOV		#8H,PTCD	;POR LO PONEMOS EN CERO
+		LDHX	#01H		; TIEMPO EN ALTO 50 D 
+		JSR	    TIEMPO		;	
+		;-------------
+		MOV		#0H,PTCD	;Configuracion UP del reloj del contador
+		;-------------
+		LDHX	#01H		;HACEMOS UN PERIODO DE 50 us
+		JSR	    TIEMPO		;
+		LDA		CONT		;
+		INCA				;
+		STA		CONT		;		
+		CBEQA	#0FH,FINSINC;
+		JMP 	SINCR		;
+FINSINC:
 		;-----VACIA TABLERO PRINCIPAL
 		MOV 	#0FFH,TABLERO; PISO
 		MOV 	#0H,TABLERO+1;
@@ -152,14 +163,15 @@ LINEA2:	MOV		#11001011B,PTED
 		MOV 	#0H,TABLERO+19;
 		MOV 	#0H,TABLERO+20;
 		
-		MOV		#0FH,CUADRO
-		MOV		#07H,CUADRO+1
-		MOV		#03H,CUADRO+2
-		MOV		#01H,CUADRO+3
+		;MOV		#0H,CUADRO
+		;MOV		#00011100B,CUADRO+1
+		;MOV		#00001000B,CUADRO+2
+		;MOV		#0H,CUADRO+3
+		JSR		RANDOM
 		;----------------------
-		MOV		#21D,FILA_C
+		MOV		#20D,FILA_C
 		MOV		#0H,COLUM_C;
-		MOV		#0FFH,CONTP;
+		MOV		#02H,CONTP;
 		MOV		#0H,PTCD; POR LO PONEMOS EN CERO
 ;------------------------------------------
 ;----------------CICLO PRINCIPAL-----------		
@@ -167,19 +179,30 @@ CICLO:	JSR		VISUAL;
 		DBNZ    CONTP,CICLO; SALTE A CICLO O HAGA LA LOGICA
 		LDA		#2H;
 		JSR		MOVI;
-		MOV		#0AFH,CONTP;
+		MOV		#51H,CONTP;
 END:	JMP 	CICLO;
 ;----------------------------------------------------------------------
 ;-------------------INTERRUPCION IRQ------------------------------------		
 INT_IRQ:
 ;----------------------------------------------------------------------
 ;-------------------INTERRUPCION KBI------------------------------------		
-INT_KBI:
+INT_KBI:LDA 	PTGD
+		AND 	#0FH
+		CBEQA   #0EH,IZQ
+		CBEQA 	#0DH,DER
+		CBEQA   #0BH,ROTAR
+		CBEQA   #07H,CAER
+IZQ:	LDX     #3H
+		MOV     #0H,TABLERO+3
+		JMP     SALIR
+SALIR:  BSET	KBACK,KBISC
+		RTI
+DER:
+ROTAR:
+CAER:
 ;--------------ORGANIZACION Y ENMASCARADO DATOS LEIDOS---------------------	
 ;--------VISUALIZACION DINAMICA ------------------------------
-MOVI:	CBEQA	#0H,RIG;
-		CBEQA	#1H,LEF;
-		DEC		FILA_C;
+MOVI:	DEC		FILA_C;
 		LDX		FILA_C;
 		LDA		TABLERO,X
 		LDX		#0H;
@@ -214,32 +237,30 @@ MORTS:	RTS				; POSICION VALIDA REGRESA PARA VISUALIZAR
 MREG: 	INC		FILA_C	;
 		LDX		FILA_C
 		LDA		TABLERO,X
-		EOR		CUADRO;
+		ORA		CUADRO;
 		STA		TABLERO,X
 		DEC		FILA_C		;DECREMENTA FILA PARA GUARDAR PERDIENDO PIBOTE 
 		LDX		FILA_C		;
 		LDA		TABLERO,X
-		EOR		CUADRO+1;
+		ORA		CUADRO+1;
 		STA		TABLERO,X
 		DEC		FILA_C		;DECREMENTA FILA PARA GUARDAR PERDIENDO PIBOTE 
 		LDX		FILA_C		;
 		LDA		TABLERO,X
-		EOR		CUADRO+2;
+		ORA		CUADRO+2;
 		STA		TABLERO,X
 		DEC		FILA_C		;DECREMENTA FILA PARA GUARDAR PERDIENDO PIBOTE 
 		LDX		FILA_C		;
 		LDA		TABLERO,X
-		EOR		CUADRO+3;
+		ORA		CUADRO+3;
 		STA		TABLERO,X
 		MOV		#20D,FILA_C	;
-		RTS					;
-RIG:
-LEF:		
+		RTS					;		
 
 VISUAL:	MOV		#1H,CONT;
 		MOV		#0H,PTCD	;Configuracion UP del reloj del contador		
 CICLOV:	
-		;------- AUMENTA CONTEO-----
+;------- AUMENTA CONTEO-----
 		LDA 	CONT
 		CBEQA   #1H,VSALTO	
 		MOV		#8H,PTCD	;POR LO PONEMOS EN CERO
@@ -250,7 +271,7 @@ VSALTO:	;-------------
 		MOV		#0H,PTCD	;Configuracion UP del reloj del contador
 		;-------------
 		LDHX	#01FEH		;HACEMOS UN PERIODO DE 50 us
-		JSR	    TIEMPO		;	
+		JSR	    TIEMPO		;
 		LDA		FILA_C		
 		CBEQ	CONT,VPR	;
 		DECA				;F+1
@@ -265,11 +286,10 @@ VSALTO:	;-------------
 VPR:	LDA		FILA_C		;	
 		SUB     CONT		;
 		PSHA				;PONE EN LA PILA Z
-		LDX		FILA_C		;CARGA X CON CONTADOR
-		DECX	
+		LDX		CONT		;CARGA X CON CONTADOR	
 		LDA		TABLERO,X	;X NO SE MODIFICA 
-		PULX
-		EOR		CUADRO,X	;INCREMENTO PARA COLUMNA+3 EN A 
+		PULX		
+		ORA		CUADRO,X	;INCREMENTO PARA COLUMNA+3 EN A 
 VAND:	PSHA				;PONGO EN LA PILA A 
 		;----------------
 		STA		AUX			;
@@ -285,6 +305,7 @@ AJ3:	BRCLR	7H,AUX,VC
 VC:		PULA				;OBTENGO EL DATO
 		AND		#0FH		;SE ENMASCARA
 		STA		PTBD		; IMPRIME EN EL PUERTO B
+	
 ;-----------RENUEVA VARIABLE
 		LDA		CONT		;
 		INCA				;
@@ -300,6 +321,82 @@ VFIN:	MOV		#08H,PTCD	;Configuracion UP del reloj del contador
 		LDHX	#01EFH; TIEMPO EN ALTO 50 D 
 		JSR	    TIEMPO
 		RTS
+		
+;-------RUTINA PARA RANDOM--------		
+RANDOM: LDA		SEM_1	;
+		LDX		SEM_2	;
+		MUL				;MULTIPLICA
+		PSHX			;
+		PULH			;
+		LDX 	#100D	;
+		DIV				;
+		
+		PSHH			;
+		LDX 	#10D	;
+		CLRH			;
+		DIV				;
+		PSHH			;
+		PULA			;	
+		MUL				;
+		
+		MOV    SEM_2,SEM_1
+		STA    SEM_2
+		PULA
+		CLRH
+		LDX 	#10D
+		DIV
+		ADD    SEM_2
+		STA    SEM_2
+		CLRH
+		DIV
+		CBEQA   #0H,SAL_F0
+		CBEQA   #1H,SAL_F1
+		CBEQA   #2H,SAL_F2
+		CBEQA   #3H,SAL_F3
+		CBEQA   #4H,SAL_F4
+		CBEQA   #5H,SAL_F5
+		CBEQA   #6H,SAL_F6
+		JMP    RANDOM
+SAL_F0: MOV    #00001000B,CUADRO
+		MOV    #00011000B,CUADRO+1
+		MOV    #00010000B,CUADRO+2
+		MOV    #00000000B,CUADRO+3
+		RTS
+SAL_F1: MOV    #00010000B,CUADRO
+		MOV    #00011000B,CUADRO+1
+		MOV    #00001000B,CUADRO+2
+		MOV    #00000000B,CUADRO+3
+		RTS
+SAL_F2: MOV    #00000000B,CUADRO
+		MOV    #00011000B,CUADRO+1
+		MOV    #00011000B,CUADRO+2
+		MOV    #00000000B,CUADRO+3
+		RTS
+
+SAL_F3: MOV    #00010000B,CUADRO
+		MOV    #00010000B,CUADRO+1
+		MOV    #00011000B,CUADRO+2
+		MOV    #00000000B,CUADRO+3
+		RTS
+
+SAL_F4: MOV    #00010000B,CUADRO
+		MOV    #00010000B,CUADRO+1
+		MOV    #0011000B,CUADRO+2
+		MOV    #00000000B,CUADRO+3
+		RTS
+
+SAL_F5: MOV    #00010000B,CUADRO
+		MOV    #00010000B,CUADRO+1
+		MOV    #0001000B,CUADRO+2
+		MOV    #00010000B,CUADRO+3
+		RTS
+
+SAL_F6: MOV    #0000000B,CUADRO
+		MOV    #0000100B,CUADRO+1
+		MOV    #00011100B,CUADRO+2
+		MOV    #00000000B,CUADRO+3
+		RTS
+		
 ;--------INICIO RUTINA DE TIEMPO------------------------------
 TIEMPO: AIX		#-1D         ; pierde tiempo
 		CPHX	#0H          ; compara HX con 0
