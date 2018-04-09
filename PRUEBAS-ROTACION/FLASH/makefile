@@ -2,7 +2,7 @@
 # Automatically-generated file. Do not edit!
 ################################################################################
 
-#Progress monitor hint: 2
+#Progress monitor hint: 1
 first : all
 -include ../makefile.init
 
@@ -16,9 +16,6 @@ RM := "$(GNU_Make_Install_DirEnv)/rm" -f
 -include subdir.mk
 -include Sources/subdir.mk
 -include Project_Settings/Linker_Files/subdir.mk
--include PRUEBAS-ROTACION/Sources/subdir.mk
--include PRUEBAS-ROTACION/Project_Settings/Linker_Files/subdir.mk
--include PRUEBAS-ROTACION/FLASH/subdir.mk
 -include objects.mk
 
 ifneq ($(MAKECMDGOALS),clean)
@@ -41,33 +38,33 @@ endif
 # Add inputs and outputs from these tool invocations to the build variables 
 OBJS += \
 default.lst \
-Tetris.obj \
+PRUEBAS.obj \
 
 OBJS_QUOTED += \
 "default.lst" \
-"Tetris.obj" \
+"PRUEBAS.obj" \
 
 OBJS_OS_FORMAT += \
 default.lst \
-Tetris.obj \
+PRUEBAS.obj \
 
 EXECUTABLES += \
-Tetris.obj \
+PRUEBAS.obj \
 
 EXECUTABLES_QUOTED += \
-"Tetris.obj" \
+"PRUEBAS.obj" \
 
 EXECUTABLES_OS_FORMAT += \
-Tetris.obj \
+PRUEBAS.obj \
 
 BURNER_OUTPUT_OUTPUTS += \
-Tetris.obj.s19 \
+PRUEBAS.obj.s19 \
 
 BURNER_OUTPUT_OUTPUTS_QUOTED += \
-"Tetris.obj.s19" \
+"PRUEBAS.obj.s19" \
 
 BURNER_OUTPUT_OUTPUTS_OS_FORMAT += \
-Tetris.obj.s19 \
+PRUEBAS.obj.s19 \
 
 
 # All Target
@@ -78,30 +75,30 @@ call-burner := 1
 endif
 endif
 ifeq ($(call-burner),1)
-all: Tetris.obj Tetris.obj.s19
+all: PRUEBAS.obj PRUEBAS.obj.s19
 else
-all: Tetris.obj
+all: PRUEBAS.obj
 endif
 
 # Tool invocations
-Tetris.obj: $(ASM_SRCS)
+PRUEBAS.obj: $(ASM_SRCS)
 	@echo 'Building target: $@'
-	@echo 'Executing target #3 $@'
+	@echo 'Executing target #2 $@'
 	@echo 'Invoking: HCS08 Assembler'
-	"$(HC08ToolsEnv)/ahc08" -Objn"Tetris.obj" -ArgFile"Tetris.args" $(ASM_SRCS_QUOTED) $(ASM_SRCS_QUOTED)
+	"$(HC08ToolsEnv)/ahc08" -Objn"PRUEBAS.obj" -ArgFile"PRUEBAS.args" $(ASM_SRCS_QUOTED) $(ASM_SRCS_QUOTED)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
-Tetris.obj.s19: $(BBL_SRCS) $(EXECUTABLES)
-	@echo 'Executing target #4 $@'
+PRUEBAS.obj.s19: $(BBL_SRCS) $(EXECUTABLES)
+	@echo 'Executing target #3 $@'
 	@echo 'Invoking: S08 Burner'
-	"$(HC08ToolsEnv)/burner" -ArgFile"Tetris.obj.args" -f="$<" -env"ABS_FILE=$(strip $(EXECUTABLES_OS_FORMAT))"
+	"$(HC08ToolsEnv)/burner" -ArgFile"PRUEBAS.obj.args" -f="$<" -env"ABS_FILE=$(strip $(EXECUTABLES_OS_FORMAT))"
 	@echo 'Finished building: $@'
 	@echo ' '
 
 # Other Targets
 clean:
-	-$(RM) $(S_DEPS_QUOTED) "./*/*/*.d" "./*/*.d"  $(BURNER_OUTPUT_OUTPUTS_QUOTED) $(ASM_UPPER_DEPS_QUOTED) "./*/*/*.obj" "./*/*.obj"  $(EXECUTABLES_QUOTED) $(S_UPPER_DEPS_QUOTED) $(ProjDirPath)/FLASH/Tetris.obj $(ProjDirPath)/FLASH/Tetris.args $(ProjDirPath)/FLASH/Tetris.obj.args $(ProjDirPath)/FLASH/Tetris.obj.s19 $(ProjDirPath)/FLASH/Tetris.sx
+	-$(RM) $(S_DEPS_QUOTED) "./*/*.d"  $(BURNER_OUTPUT_OUTPUTS_QUOTED) $(ASM_UPPER_DEPS_QUOTED) "./*/*.obj"  $(EXECUTABLES_QUOTED) $(S_UPPER_DEPS_QUOTED) $(ProjDirPath)/FLASH/PRUEBAS.obj $(ProjDirPath)/FLASH/PRUEBAS.args $(ProjDirPath)/FLASH/PRUEBAS.obj.args $(ProjDirPath)/FLASH/PRUEBAS.obj.s19 $(ProjDirPath)/FLASH/PRUEBAS.sx
 	-@echo ' '
 
 .PHONY: all clean dependents explicit-dependencies warning-messages
