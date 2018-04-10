@@ -3242,15 +3242,15 @@ mPageErase:         equ     $40
 KBIE	EQU	1
 KBACK	EQU	2
 KMOD    EQU 0
-CLK		EQU 0		;Define bit 5 del PTC CLK del contador
+CLK		EQU 0		
 RESET   EQU 1
-LOCK	EQU	6		;Bit 6 del registro MCGSC
+LOCK	EQU	6	
+RS		EQU	0		
+ENABLE	EQU	1		
 
 		ORG 	0B0H  ;Direccion de RAM  (Variables)
 			
 CONT      DS 1
-CONT1      DS 1
-TEMP1      DS 1
 TABLERO   DS 21
 CUADRO 	  DS 4 
 CONTP	  DS 1
@@ -3267,12 +3267,11 @@ AUXX      DS 1
 SEM_1	  DS 1
 SEM_2	  DS 1
 BAJA_R    DS 1
-FUENT	  Ds 1	
+TEMP	  DS 1
+FUENT	  DS 1	
 DEST	  DS 1
-TEMP 	  DS 1
 N1		  DS 1
 N2		  DS 1
-CONT2	  DS 1
 
 		ORG		0C000H; Direccion de RAM  (Memoria para programa)
 
@@ -3285,10 +3284,8 @@ INICIO: CLRA
 		BRCLR	LOCK,	MCGSC,	*
 		MOV		#33H,	PTFDD	  ;Configuramos los pines F0,F1,F4,F5	como salidas	
 		MOV		#0FH,	PTBDD     ;Configuramos los pines B0,B1,B2,B3	como salidas
-		MOV		#03H,	PTCDD	  ;Configuracion del reloj del contador
-;-------configuracion IRQ;		
+		MOV		#03H,	PTCDD	  ;Configuracion del reloj del contador	
 		MOV		#00010110B, IRQSC 
-		
 		MOV		#0H,PTGDD;
 		LDA		#0FH			 	;HABILITAR RESISTENCIAS DE PULL UP G2-G3
 		STA		PTGPE				;MODIFICA REGISTRO	
@@ -3297,10 +3294,76 @@ INICIO: CLRA
 		BSET	KBIE,  KBISC
 		MOV     #0H,KBIES
 		CLI
-			
-;----------------Limpia Variables------
-		MOV     #1D,AUXX
-LIM_V:	MOV     #0D,BAJA_R
+;----------------Limpia Variables------        
+ 		MOV     #0H,PUNTAJE_M
+		MOV		#20D,SEM_1
+		MOV		#56D,SEM_2
+		LDA     PUNTAJE_M
+		CBEQA   #0H,SALTO1
+		LDA     SEM_1
+		ADD     PUNTAJE_M
+SALTO1:	STA     SEM_1
+		LDX     #100D
+		CLRH
+		DIV 
+		PSHH
+		PULA
+		CMP     #11D
+		BPL     CMP10_1
+		MOV     #11D,SEM_1
+CMP10_1:INC     SEM_2
+		CLRH
+		LDX     #100D
+		DIV 
+		PSHH
+		PULA
+		STA 	SEM_2
+		CMP     #11D
+		BPL     CON_LCD
+		MOV     #15D,SEM_2
+		
+		
+		;------------------CONFIGURACION LCD--------------------------------------------
+CON_LCD:LDHX	#50000D
+		JSR		TIEMPO		
+		MOV		#0FFH,	PTEDD			;Configuramos el puerto E todo como salidas
+		MOV		#3H,PTDDD			;Configuramos bits 0 y 1 del puerto D como salidas
+		BCLR	ENABLE,	PTDD				;Mandamos el bit 1 del registro D a 0
+		MOV 	#00111000B,	PTED			;Enviamos el comando para colocar bus a 8 BITS, las 2 lineas habilitadas y matriz de 5x7 en cada cuadro
+		JSR		COMANDO					;Saltamos a sub rutina para enviar el comando
+		MOV		#00000110B,	PTED			;Enviamos el comando para escribir de izquierda a derecha y display estático
+		JSR		COMANDO					;Saltamos a sub turtina para enviar el comando
+		MOV		#00001100B,	PTED			;Enviamos el comando para encender el display, apagar el cursor y mantener el cursor estático
+		JSR		COMANDO					;Saltamos a sub rutina para enviar el comando
+		MOV 	#00000001B,	PTED			;Enviamos el comando para borrar el display
+		JSR		COMANDO
+		LDHX	#20000D
+		JSR		TIEMPO
+		MOV		#10000000B,	PTED			;Enviamos comando para mover el cursor a la posición 2 en la línea 1
+		JSR		COMANDO
+		LDHX	#0H
+
+LINEA1: LDA 	TABLAF1,X
+		CBEQA	#0FFH,CONLIN2
+		STA		PTED
+		JSR		DATOLCD
+		AIX 	#1
+		JMP		LINEA1
+CONLIN2:MOV		#11000000B,PTED			; ENVIAMOS COMANDO PARA MVER EL CURSOR EN LA POSICION 2 DE LA LINEA 2
+		JSR     COMANDO
+		LDHX 	#20000D
+		JSR     TIEMPO
+LINEA2:	LDA 	TABLAF2,X               ; Se preguntan por datos de la tabla
+		CBEQA	#0FFH,EXITLCD
+		STA		PTED
+		JSR		DATOLCD
+		AIX 	#1
+		JMP		LINEA2; 
+EXITLCD:		
+;--------------------------------------		
+    	MOV     #1D,AUXX
+LIM_V:  JSR		RANDOM
+    	MOV     #0D,BAJA_R
 		MOV     #0H,PAUSE
 		
 		MOV		#0H,PTFD
@@ -3313,34 +3376,6 @@ LIM_V:	MOV     #0D,BAJA_R
 		BCLR    RESET,PTCD	
         MOV     #15D,CONT
         
- 		MOV     #0H,PUNTAJE_M
-		MOV		#0D,SEM_1
-		MOV		#0D,SEM_2
-		LDA     PUNTAJE_M
-		CBEQA   #0,SALTO1
-		LDA     SEM_1
-		ADD     PUNTAJE_M
-SALTO1:	STA     SEM_1
-		LDX     #100D
-		CLRH
-		DIV 
-		PSHH
-		PULA
-		CMP     #11D
-		BPL     CMP10_1
-		MOV     #19D,SEM_1
-CMP10_1:INC     SEM_2
-		CLRH
-		LDX     #100D
-		DIV 
-		PSHH
-		PULA
-		STA 	SEM_2
-		CMP     #45D
-		BPL     AJUSTE
-		MOV     #15D,SEM_2
-		
-        
 AJUSTE: BSET    CLK,PTCD;
 		LDHX    #300D     ; Tiempo de 50ms			
 		JSR		TIEMPO
@@ -3350,9 +3385,7 @@ AJUSTE: BSET    CLK,PTCD;
 		DBNZ    CONT,AJUSTE
 		
 LIMP:	MOV 	#0FFH,TABLERO;FF
-		MOV		#0H,CONT1;
-		MOV		#0H,CONT2;
-		MOV		#0H,TEMP1;
+		
 		MOV 	#0H,TABLERO+1
 		MOV 	#0H,TABLERO+2
 		MOV 	#0H,TABLERO+3
@@ -3403,9 +3436,19 @@ ETIQ: 	JSR     VISUAL
 		LDA     AUXX
 		CBEQA   #0H,LOL
 		JMP		ETIQ
+		
 LOL:    JMP     LIM_V
 ;------------------INFINITO---------------------------------
-CICLO:	JSR		VISUAL;
+CICLO:	LDA		TABLERO+17
+		CBEQA	#0H,N_LOSE
+		LDA     PUNTAJE_M
+		CMP		PUNTAJE
+		BPL		NEW_P
+		MOV		PUNTAJE,PUNTAJE_M
+NEW_P:	MOV		#1D,AUXX
+		JMP     LIM_V
+		
+N_LOSE:	JSR		VISUAL;
 		DBNZ    CONTP,CICLO;   SALTE A CICLO O HAGA LA LOGICA
 		LDA     BAJA_R
 		CBEQA   #1H,VELO
@@ -3414,7 +3457,6 @@ CICLO:	JSR		VISUAL;
 		LDA		PAUSE  
 		CBEQA   #1H,CICLO      
 		JSR 	MOVI
-		;JSR     PUNTOS
 		JMP 	CICLO;
 		
 VELO:   MOV		#02FH,CONTP;
@@ -3422,21 +3464,22 @@ VELO:   MOV		#02FH,CONTP;
 		LDA     PAUSE
 		CBEQA   #1H,CICLO    
 		JSR 	MOVI
-		;JSR     PUNTOS
 END:	JMP 	CICLO;
 
 ;-------------------INTERRUPCION IRQ------------------------------------		
 INT_IRQ:LDA     AUXX
-		;CBEQA   #0H,SALT2
+		CBEQA   #0H,SALT2
 		MOV     #0H,AUXX
-		JSR		RANDOM
-		JSR		RANDOM
 		JMP     SAL_IRQ
+		
 SALT2:  LDA		PAUSE
 		CBEQA   #0H,PAUSAR
+		BSET	KBIE,  KBISC
 		MOV     #0H,PAUSE
-		JMP     SALIR
+		JMP     SAL_IRQ
+		
 PAUSAR: MOV     #1H,PAUSE
+		BCLR	KBIE,  KBISC
 		JMP     SAL_IRQ	
 SAL_IRQ:LDHX	#50000D
 		JSR	    TIEMPO
@@ -3470,8 +3513,8 @@ DER:    BRSET	0H,CUADRO,SALIR
 		MOV     #0H,AUX
 		JSR     MOVI
 		JMP     SALIR
-			
-ROT:   	MOV		CUADRO+0,FUENT;
+		
+ROT:	MOV		CUADRO+0,FUENT;
 		MOV		CUADRO+3,DEST;		
 		MOV		COLUM_C,N1;
 		MOV		COLUM_C,N2;
@@ -3680,7 +3723,27 @@ N2C6:	BCLR	6,DEST
 		JMP		CLRFIN
 N2C7:	BCLR	7,DEST		
 CLRFIN:	RTS; RETORNA
-
+;--------RUTINA COMANDO---------------------------------- 
+COMANDO:BCLR	RS,		PTDD				;Mandamos el bit RS del LCD al 0 para saber que vamos a enviar un comando
+		JMP		SALTOLCD					;Pasamos a hacer el pulso del enable
+DATOLCD:BSET	RS,		PTDD				;Mandamos el bit RS del LCD a 1 para saber que vamos a enviar un dato
+SALTOLCD:
+		BSET	ENABLE,	PTDD				;Mandamos el pulso en alto al bit ENABLE del LCD
+		NOP									;Con esto esperamos tiempo en alto del bit ENABLE		
+		NOP
+		NOP									;Con esto esperamos tiempo en alto del bit ENABLE		
+		NOP
+		NOP
+		NOP
+		BCLR	ENABLE,	PTDD				;Bajamos el bit a 0 y así aseguramos el pulso
+		PSHX								;Guarda datos correspondientes lo que venia antes  
+		PSHH								;para subrutina de tiempo no sobre escriba
+		LDHX	#50D
+		JSR		TIEMPO
+		PULH								;Obtiene 
+		PULX								;Datos
+		RTS
+		
 ;--------MOVIMIENTOS----------------------------
 MOVI:	LDA     AUX;
 		CBEQA   #1H,DECR
@@ -3780,7 +3843,8 @@ MREG: 	INC		FILA_C	;
 		CBEQA   #0H,RAN
 		INC     AUXX
 		RTS
-RAN:	JSR     RANDOM
+RAN:	JSR     PUNTOS
+		JSR		RANDOM
 		RTS			
 		
 ;----------------CICLO VISUAL-----------	
@@ -3837,31 +3901,58 @@ TIEMPO: AIX		#-1D         ; resta 1 a HX
 		BNE		TIEMPO       ; Si hx es igual a 0 sigue
 		RTS                  ; retorna		
 		
-;-------------------PUNTAJE----------------------------
-PUNTOS: MOV	#1H,CONT1;
-		MOV	#0H,TEMP1;PUNTOS LINEALES
-CICLOPU:LDX	CONT1;
-		LDA	TABLERO,X;
-		CBEQA	#0FFH,DES;
-		JMP	NDESA;
-DES:	MOV	CONT1,CONT2;
-CICLOD:	LDX	CONT2;
-		INCX		 ;
-		LDA	TABLERO,X;
-		DECX			;
-		STA	TABLERO,X;
-		LDA	CONT2	;
-		INCA;
-		STA	CONT2	;SE AUMENTA CONTADOR
-		CBEQA	#11H,FIND;
-		JMP	CICLOD	;
-FIND:	INC	TEMP1	; INCREMENTA LOS PUNTOS			
-NDESA:	LDA 	CONT1	; CONTADOR PRINCIPAL
-		INCA
-		STA CONT1;
-		CBEQA	#11H,EXITPUN;
-		JMP		CICLOPU	;
-EXITPUN:RTS
+;----------------PUNTAJE---------------------------------
+
+PUNTOS: PSHA
+		LDA     CONT
+		PSHA
+		PSHX
+		MOV		#1H,CONT
+		MOV 	#0H,TEMP
+CICLOPU:LDX     CONT
+		LDA		TABLERO,X
+		CBEQA	#0FFH,CICLOB
+		INC     CONT
+		LDA     CONT
+		CPX     #16D
+		BNE     CICLOPU
+		LDA		TEMP
+		CBEQA   #1H,UNO
+		CBEQA	#2H,DOS
+		CBEQA	#3H,TRES
+		CBEQA	#4H,CUATRO
+SALIDA:	PULX
+		PULA
+		STA		CONT
+		PULA
+		RTS
+UNO:    INC		PUNTAJE
+		JMP		SALIDA
+DOS:	LDA 	PUNTAJE
+		ADD		#3H
+		STA		PUNTAJE
+		JMP		SALIDA
+TRES:	LDA		PUNTAJE
+		ADD		#6H
+		STA		PUNTAJE
+		JMP		SALIDA
+CUATRO: LDA		PUNTAJE
+		ADD		#10H
+		STA		PUNTAJE
+		JMP		SALIDA
+		
+BORRA:	INC		TEMP		
+
+CICLOB: INCX
+		LDA     TABLERO,X
+		DECX
+		STA     TABLERO,X
+		INCX
+		CPX     #16D
+		BNE     CICLOB
+		INC     CONT
+		JMP		CICLOPU
+		
 ;----------------------RANDOM-------------------------
 RANDOM: INC     SEM_1
 		LDA		SEM_1
@@ -3942,6 +4033,8 @@ SAL_F6: MOV    #00000000B,CUADRO
 TABLA_T:FCB 0FFH,238D,132D,228D,46D,224D,82D,82D,50D,82D,119D
 		FCB 228D,36D,228D,36D,238D,128D
 		
+TABLAF1:FCB 'LVL: 0 BEST: 0000',0FFH
+TABLAF2:FCB 'POINT: 0000',0FFH
 			
 ;------POSICION DE INICIO----------------------------------
 		ORG		0FFCCH
@@ -3952,4 +4045,3 @@ TABLA_T:FCB 0FFH,238D,132D,228D,46D,224D,82D,82D,50D,82D,119D
 
 		ORG     0FFFEH
 		FDB		INICIO
-		
