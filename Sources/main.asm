@@ -10,6 +10,8 @@ LOCK	EQU	6		;Bit 6 del registro MCGSC
 		ORG 	0B0H  ;Direccion de RAM  (Variables)
 			
 CONT      DS 1
+CONT1      DS 1
+TEMP1      DS 1
 TABLERO   DS 21
 CUADRO 	  DS 4 
 CONTP	  DS 1
@@ -31,6 +33,7 @@ DEST	  DS 1
 TEMP 	  DS 1
 N1		  DS 1
 N2		  DS 1
+CONT2	  DS 1
 
 		ORG		0C000H; Direccion de RAM  (Memoria para programa)
 
@@ -108,7 +111,9 @@ AJUSTE: BSET    CLK,PTCD;
 		DBNZ    CONT,AJUSTE
 		
 LIMP:	MOV 	#0FFH,TABLERO;FF
-		
+		MOV		#0H,CONT1;
+		MOV		#0H,CONT2;
+		MOV		#0H,TEMP1;
 		MOV 	#0H,TABLERO+1
 		MOV 	#0H,TABLERO+2
 		MOV 	#0H,TABLERO+3
@@ -170,6 +175,7 @@ CICLO:	JSR		VISUAL;
 		LDA		PAUSE  
 		CBEQA   #1H,CICLO      
 		JSR 	MOVI
+		;JSR     PUNTOS
 		JMP 	CICLO;
 		
 VELO:   MOV		#02FH,CONTP;
@@ -177,6 +183,7 @@ VELO:   MOV		#02FH,CONTP;
 		LDA     PAUSE
 		CBEQA   #1H,CICLO    
 		JSR 	MOVI
+		;JSR     PUNTOS
 END:	JMP 	CICLO;
 
 ;-------------------INTERRUPCION IRQ------------------------------------		
@@ -590,6 +597,32 @@ TIEMPO: AIX		#-1D         ; resta 1 a HX
 		CPHX	#0H          ; compara HX con 0
 		BNE		TIEMPO       ; Si hx es igual a 0 sigue
 		RTS                  ; retorna		
+		
+;-------------------PUNTAJE----------------------------
+PUNTOS: MOV	#1H,CONT1;
+		MOV	#0H,TEMP1;PUNTOS LINEALES
+CICLOPU:LDX	CONT1;
+		LDA	TABLERO,X;
+		CBEQA	#0FFH,DES;
+		JMP	NDESA;
+DES:	MOV	CONT1,CONT2;
+CICLOD:	LDX	CONT2;
+		INCX		 ;
+		LDA	TABLERO,X;
+		DECX			;
+		STA	TABLERO,X;
+		LDA	CONT2	;
+		INCA;
+		STA	CONT2	;SE AUMENTA CONTADOR
+		CBEQA	#11H,FIND;
+		JMP	CICLOD	;
+FIND:	INC	TEMP1	; INCREMENTA LOS PUNTOS			
+NDESA:	LDA 	CONT1	; CONTADOR PRINCIPAL
+		INCA
+		STA CONT1;
+		CBEQA	#11H,EXITPUN;
+		JMP		CICLOPU	;
+EXITPUN:RTS
 ;----------------------RANDOM-------------------------
 RANDOM: INC     SEM_1
 		LDA		SEM_1
