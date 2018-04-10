@@ -100,6 +100,8 @@ LINEA2:	LDA 	TABLAF1,X
 		AIX 	#1
 		JMP		LINEA2
 EXITLCD:		
+		
+		
 ;--------------------------------------		
 			
 ;----------------Limpia Variables------
