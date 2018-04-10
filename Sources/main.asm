@@ -1,24 +1,27 @@
 	INCLUDE 'MC9S08JM16.INC' 
-	
-;INTERUPCIONES 	
-KBIE	EQU		1
-KBACK	EQU		2
-IRQACK	EQU	2
+
 ;LCD
 RS		EQU	0		;Define bit 0 del PTD
 ENABLE	EQU	1		;Define bit 1 del PTD
-
-;RELOJ INTERNO
+	
+KBIE	EQU	1
+KBACK	EQU	2
+KMOD    EQU 0
+CLK		EQU 0		;Define bit 5 del PTC CLK del contador
+RESET   EQU 1
 LOCK	EQU	6		;Bit 6 del registro MCGSC
 
 		ORG 	0B0H  ;Direccion de RAM  (Variables)
 			
+CONT      DS 1
+C1P      DS 1
+C2P      DS 1
+PUNTEM      DS 1
 TABLERO   DS 21
 CUADRO 	  DS 4 
-CONT      DS 1
 CONTP	  DS 1
 FILA_C    DS 1
-COLUM_C    DS 1
+COLUM_C   DS 1
 PUNTAJE   DS 2
 PUNTAJE_M DS 2
 NIVEL     DS 1  
@@ -26,66 +29,46 @@ GAME_OVER DS 1
 START     DS 1
 PAUSE     DS 1
 AUX		  DS 1
+AUXX      DS 1
 SEM_1	  DS 1
 SEM_2	  DS 1
-FUENT	  DS	1	
+BAJA_R    DS 1
+FUENT	  Ds 1	
 DEST	  DS 1
 TEMP 	  DS 1
+N1		  DS 1
+N2		  DS 1
+
+
 		ORG		0C000H; Direccion de RAM  (Memoria para programa)
 
-INICIO:	;----------CONFIGURACION RELOJ----------------------------------------------
-		MOV		#0AAH,	MCGTRM
-		MOV 	#6,		MCGC1
-		BRCLR	LOCK,	MCGSC,	*
-;---------------CONFIGURACION MICRO-------------------------------------------------------------
-		CLRA;Limpia registro A 
-		STA SOPT1;Carga registro SOPT1 con ceros para Deshabilitar Modulo COP		
+INICIO: CLRA
+		STA		SOPT1
 		LDHX	#4B0H
 		TXS
-;--------------CONFIGURACION IRQ----------------------------------------
-		MOV		#01110110B, IRQSC 
-;---------------CONFIGURACION TECLADO--------------------------------------------
+		MOV     #0AAH,MCGTRM
+		MOV     #00000110B,MCGC1
+		BRCLR	LOCK,	MCGSC,	*
+		MOV		#33H,	PTFDD	  ;Configuramos los pines F0,F1,F4,F5	como salidas	
+		MOV		#0FH,	PTBDD     ;Configuramos los pines B0,B1,B2,B3	como salidas
+		MOV		#03H,	PTCDD	  ;Configuracion del reloj del contador
+;-------configuracion IRQ;		
+		MOV		#00010110B, IRQSC 
+		
 		MOV		#0H,PTGDD;
 		LDA		#0FH			 	;HABILITAR RESISTENCIAS DE PULL UP G2-G3
 		STA		PTGPE				;MODIFICA REGISTRO	
 		MOV		#11000011B,KBIPE	;HABILITAR INTERRUPCIONES DE PUERTOS
 		BSET	KBACK, KBISC
 		BSET	KBIE,  KBISC
+		MOV     #0H,KBIES
 		CLI
-;-------------------------------------------------------------------------------
-;------------------CONFIGURACION PINES PARA MATRIX------------------------------
-		MOV		#33H,	PTFDD			;Configuramos los pines F0,F1,F4,F5	como salidas	
-		MOV		#0FH,	PTBDD			;Configuramos los pines B0,B1,B2,B3	como salidas
-		MOV		#00011000B,	PTCDD			;Configuracion del reloj del contador
-;---------------------------------------------------------------------------------
-;------------------CONFIGURACION DE ALEATORIO-------------------------------------
-		MOV		#0H,PUNTAJE_M
-		MOV		#12H,SEM_1
-		MOV		#1CH,SEM_2
-		LDA     SEM_1
-		ADD     PUNTAJE_M
-		STA     SEM_1
-		LDX     #100D
-		CLRH
-		DIV 
-		PSHH
-		PULA
-		CMP     #11D
-		BPL     CMP10_1
-		MOV     #13D,SEM_1
-CMP10_1:INC     SEM_2
-		CLRH
-		DIV 
-		PSHH
-		PULA
-		STA 	SEM_2
-		CMP     #11D
-		BPL     CMP10_2
-		MOV     #15D,SEM_1
-
+		
 ;-------------------------------------------------------------------------------
 ;------------------CONFIGURACION LCD--------------------------------------------
-CMP10_2:MOV		#0FFH,	PTEDD			;Configuramos el puerto E todo como salidas
+CMP10_2:LDHX	#50000D
+		JSR		TIEMPO		
+		MOV		#0FFH,	PTEDD			;Configuramos el puerto E todo como salidas
 		MOV		#3,		PTDDD			;Configuramos bits 0 y 1 del puerto D como salidas
 		BCLR	ENABLE,	PTDD				;Mandamos el bit 1 del registro D a 0
 		MOV #00111000B,	PTED			;Enviamos el comando para colocar bus a 8 BITS, las 2 lineas habilitadas y matriz de 5x7 en cada cuadro
@@ -102,118 +85,429 @@ CMP10_2:MOV		#0FFH,	PTEDD			;Configuramos el puerto E todo como salidas
 		JSR		COMANDO
 		LDHX	#0
 LINEA1: LDA 	TABLAF1,X
-		CBEQA	#0FFH,LINEA2
+		CBEQA	#0FFH,CONLIN2
 		STA		PTED
 		JSR		DATOLCD
 		AIX 	#1
 		JMP		LINEA1
-LINEA2:	MOV		#11001011B,PTED
+CONLIN2:MOV		#11001011B,PTED			; ENVIAMOS COMANDO PARA MVER EL CURSOR EN LA POSICION 2 DE LA LINEA 2
 		JSR     COMANDO
 		LDHX 	#0
-		
+LINEA2:	LDA 	TABLAF1,X
+		CBEQA	#0FFH,EXITLCD
+		STA		PTED
+		JSR		DATOLCD
+		AIX 	#1
+		JMP		LINEA2
+EXITLCD:		
 ;--------------------------------------		
-;----------LIMPIA VARIABLES------------
-		MOV		#0H,PTFD;
-		MOV		#0H,PTBD;
-		MOV		#0H,PTCD
-		MOV		#0H,CONT;;Configuracion UP del reloj del contador		
-SINCR:	MOV		#8H,PTCD	;POR LO PONEMOS EN CERO
-		LDHX	#01H		; TIEMPO EN ALTO 50 D 
-		JSR	    TIEMPO		;	
-		;-------------
-		MOV		#0H,PTCD	;Configuracion UP del reloj del contador
-		;-------------
-		LDHX	#01H		;HACEMOS UN PERIODO DE 50 us
-		JSR	    TIEMPO		;
-		LDA		CONT		;
-		INCA				;
-		STA		CONT		;		
-		CBEQA	#0FH,FINSINC;
-		JMP 	SINCR		;
-FINSINC:
-		;-----VACIA TABLERO PRINCIPAL
-		MOV 	#0FFH,TABLERO; PISO
-		MOV 	#0H,TABLERO+1;
-		MOV 	#0H,TABLERO+2;
-		MOV 	#0H,TABLERO+3;
-		MOV 	#0H,TABLERO+4;
-		MOV 	#0H,TABLERO+5;
-		MOV 	#0H,TABLERO+6;
-		MOV 	#0H,TABLERO+7;
-		MOV 	#0H,TABLERO+8;
-		MOV 	#0H,TABLERO+9;
-		MOV 	#0H,TABLERO+10;
-		MOV 	#0H,TABLERO+11;
-		MOV 	#0H,TABLERO+12;
-		MOV 	#0H,TABLERO+13;
-		MOV 	#0H,TABLERO+14;
-		MOV 	#0H,TABLERO+15;
-		MOV		#0H,TABLERO+16;
-		MOV		#0H,TABLERO+17;
-		MOV		#0H,TABLERO+18;
-		MOV 	#0H,TABLERO+19;
-		MOV 	#0H,TABLERO+20;
+			
+;----------------Limpia Variables------
+		MOV     #1D,AUXX
+LIM_V:	MOV     #0D,BAJA_R
+		MOV     #0H,PAUSE
 		
-		;MOV		#0H,CUADRO
-		;MOV		#00011100B,CUADRO+1
-		;MOV		#00001000B,CUADRO+2
-		;MOV		#0H,CUADRO+3
-		JSR		RANDOM
-		;----------------------
+		MOV		#0H,PTFD
+		MOV		#0H,PTBD;
+		BCLR    CLK,PTGD;
+		LDHX    #21D
+		BSET    RESET,PTCD
+		LDHX    #3000D     ; Tiempo de 50ms			
+		JSR		TIEMPO
+		BCLR    RESET,PTCD	
+        MOV     #15D,CONT
+        
+ 		MOV     #0H,PUNTAJE_M
+		MOV		#0D,SEM_1
+		MOV		#0D,SEM_2
+		LDA     PUNTAJE_M
+		CBEQA   #0,SALTO1
+		LDA     SEM_1
+		ADD     PUNTAJE_M
+SALTO1:	STA     SEM_1
+		LDX     #100D
+		CLRH
+		DIV 
+		PSHH
+		PULA
+		CMP     #11D
+		BPL     CMP10_1
+		MOV     #19D,SEM_1
+CMP10_1:INC     SEM_2
+		CLRH
+		LDX     #100D
+		DIV 
+		PSHH
+		PULA
+		STA 	SEM_2
+		CMP     #45D
+		BPL     AJUSTE
+		MOV     #15D,SEM_2
+		
+        
+AJUSTE: BSET    CLK,PTCD;
+		LDHX    #300D     ; Tiempo de 50ms			
+		JSR		TIEMPO
+		BCLR    CLK,PTCD	
+	    LDHX    #300D     ; Tiempo de 50ms	
+		JSR		TIEMPO;
+		DBNZ    CONT,AJUSTE
+		
+LIMP:	MOV 	#0FFH,TABLERO;FF
+		MOV		#0H,C1P;
+		MOV		#0H,C2P;
+		MOV		#0H,PUNTEM;
+		MOV 	#0H,TABLERO+1
+		MOV 	#0H,TABLERO+2
+		MOV 	#0H,TABLERO+3
+		MOV 	#0H,TABLERO+4
+		MOV 	#0H,TABLERO+5
+		MOV 	#0H,TABLERO+6	
+		MOV 	#0H,TABLERO+7
+		MOV 	#0H,TABLERO+8
+		MOV 	#0H,TABLERO+9
+		MOV 	#0H,TABLERO+10
+		MOV 	#0H,TABLERO+11
+		MOV 	#0H,TABLERO+12
+		MOV 	#0H,TABLERO+13
+		MOV 	#0H,TABLERO+14
+		MOV 	#0H,TABLERO+15
+		MOV 	#0H,TABLERO+16;
+		
+		MOV		#0H,TABLERO+17;0
+		MOV		#0H,TABLERO+18;0
+		MOV 	#0H,TABLERO+19;0
+		MOV 	#0H,TABLERO+20;0
+		
 		MOV		#20D,FILA_C
-		MOV		#0H,COLUM_C;
-		MOV		#02H,CONTP;
-		MOV		#0H,PTCD; POR LO PONEMOS EN CERO
-;------------------------------------------
-;----------------CICLO PRINCIPAL-----------		
+		MOV		#7H,COLUM_C;
+		
+		MOV     #0D,CONT
+		MOV		#0FH,CONTP;
+		
+		LDA     AUXX
+		CBEQA   #0H,CICLO
+		MOV     #0H,CUADRO+0
+		MOV     #0H,CUADRO+1
+		MOV     #0H,CUADRO+2
+		MOV     #0H,CUADRO+3
+;--------------CICLO LETRERO----------
+ETIU:   LDX     AUXX
+		LDA  	TABLA_T,X
+		STA     CUADRO+0
+CICLOS:	JSR		VISUAL;
+		DBNZ    CONTP,CICLOS;   SALTE A CICLO O HAGA LA LOGICA
+		MOV     #1H,AUX       
+		JSR 	MOVI
+		MOV		#0FH,CONTP;
+		LDA     AUXX
+		CBEQA   #17D,ETIQ
+		JMP     ETIU
+ETIQ: 	JSR     VISUAL
+		LDA     AUXX
+		CBEQA   #0H,LOL
+		JMP		ETIQ
+LOL:    JMP     LIM_V
+;------------------INFINITO---------------------------------
 CICLO:	JSR		VISUAL;
-		DBNZ    CONTP,CICLO; SALTE A CICLO O HAGA LA LOGICA
-		MOV     #1,AUX
-		JSR		MOVI;
-		MOV		#51H,CONTP;
+		DBNZ    CONTP,CICLO;   SALTE A CICLO O HAGA LA LOGICA
+		LDA     BAJA_R
+		CBEQA   #1H,VELO
+		MOV		#0FFH,CONTP;
+		MOV     #1H,AUX  
+		LDA		PAUSE  
+		CBEQA   #1H,CICLO      
+		JSR 	MOVI
+		JMP 	CICLO;
+		
+VELO:   MOV		#02FH,CONTP;
+		MOV     #1H,AUX   
+		LDA     PAUSE
+		CBEQA   #1H,CICLO    
+		JSR 	MOVI
 END:	JMP 	CICLO;
-;----------------------------------------------------------------------
+
 ;-------------------INTERRUPCION IRQ------------------------------------		
-INT_IRQ:
-;----------------------------------------------------------------------
+INT_IRQ:LDA     AUXX
+		;CBEQA   #0H,SALT2
+		MOV     #0H,AUXX
+		JSR		RANDOM
+		JSR		RANDOM
+		JMP     SAL_IRQ
+SALT2:  LDA		PAUSE
+		CBEQA   #0H,PAUSAR
+		MOV     #0H,PAUSE
+		JMP     SALIR
+PAUSAR: MOV     #1H,PAUSE
+		JMP     SAL_IRQ	
+SAL_IRQ:LDHX	#50000D
+		JSR	    TIEMPO
+		BSET 2,IRQSC
+		RTI
 ;-------------------INTERRUPCION KBI------------------------------------		
 INT_KBI:LDA 	PTGD
 		AND 	#0FH
 		CBEQA   #0EH,IZQ
 		CBEQA 	#0DH,DER
-		CBEQA   #0BH,ROTAR
+		CBEQA   #0BH,ROT
 		CBEQA   #07H,CAER
-IZQ:	LDX     #3H
-		MOV     #0H,TABLERO+3
+SALIR:  BSET	KBACK,KBISC
+		RTI
+		
+IZQ:	BRSET	7H,CUADRO,SALIR
+		BRSET	7H,CUADRO+1,SALIR
+		BRSET	7H,CUADRO+2,SALIR
+		BRSET	7H,CUADRO+3,SALIR
+		MOV     #2H,AUX
+		JSR     MOVI
+		JMP     SALIR	
+		
+CAER:   MOV     #1H,BAJA_R
 		JMP     SALIR
+
 DER:    BRSET	0H,CUADRO,SALIR
 		BRSET	0H,CUADRO+1,SALIR
 		BRSET	0H,CUADRO+2,SALIR
 		BRSET	0H,CUADRO+3,SALIR
+		MOV     #0H,AUX
+		JSR     MOVI
+		JMP     SALIR
+			
+ROT:   	MOV		CUADRO+0,FUENT;
+		MOV		CUADRO+3,DEST;		
+		MOV		COLUM_C,N1;
+		MOV		COLUM_C,N2;
+		JSR		ROTAR;1
+		MOV		DEST,CUADRO+3;
+		LDA		COLUM_C;
+		ADD		#3H;
+		STA		N2;
+		JSR		ROTAR;2
+		MOV		DEST,CUADRO+3; EL DESTINO SE CARGA 
+		MOV		CUADRO+0,DEST
+		MOV		N2,N1; SE CARGA N2 A N1 POR QUE EN ESTE CASO SON IGUALES
+		JSR		ROTAR;3
+		MOV		DEST,CUADRO+0;
+		MOV		COLUM_C,N2;
+		JSR		ROTAR;4
+		MOV		DEST,CUADRO+0; EL DESTINO SE CARGA 
+		MOV		CUADRO+1,FUENT;
+		MOV		CUADRO+3,DEST;
+		MOV		COLUM_C,N1;
+		LDA		COLUM_C;
+		ADD		#1H;
+		STA		N2;
+		JSR		ROTAR;5
+		MOV		DEST,CUADRO+3; SE CARGA EL DESTINO MODIFICADO
+		MOV		CUADRO+2,DEST;
+		MOV		N2,N1;
+		LDA		COLUM_C; 
+		ADD		#3H;
+		STA		N2;N2 = COLUM+3
+		JSR		ROTAR;6 
+		MOV		DEST,CUADRO+2; SE CARGA EL DESTINO MODIFICADO
+		MOV		CUADRO+0,DEST;
+		MOV		N2,N1;
+		LDA		COLUM_C; 
+		ADD		#2H;
+		STA		N2;N2 = COLUM+2
+		JSR		ROTAR; 7
+		MOV		DEST,CUADRO+0; SE CARGA EL DESTINO MODIFICADO
+		MOV		CUADRO+1,DEST;
+		MOV		N2,N1;
+		MOV		COLUM_C,N2; N2 = COLUMNA
+		JSR		ROTAR; 8
+		MOV		DEST,CUADRO+1; SE CARGA EL DESTINO MODIFICADO
+		MOV		CUADRO+2,FUENT;
+		MOV		CUADRO+3,DEST;
+		MOV		COLUM_C,N1;
+		LDA		COLUM_C;
+		ADD		#2H;
+		STA		N2;
+		JSR		ROTAR;9
+		MOV		DEST,CUADRO+3; SE CARGA EL DESTINO MODIFICADO
+		MOV		CUADRO+1,DEST;
+		MOV		N2,N1;
+		LDA		COLUM_C; 
+		ADD		#3H;
+		STA		N2;N2 = COLUM+3
+		JSR		ROTAR;10 
+		MOV		DEST,CUADRO+1; SE CARGA EL DESTINO MODIFICADO
+		MOV		CUADRO+0,DEST;
+		MOV		N2,N1;
+		LDA		COLUM_C; 
+		ADD		#1H;
+		STA		N2;N2 = COLUM+1
+		JSR		ROTAR; 11
+		MOV		DEST,CUADRO+0; SE CARGA EL DESTINO MODIFICADO
+		MOV		CUADRO+2,DEST;
+		MOV		N2,N1;
+		MOV		COLUM_C,N2; N2 = COLUMNA
+		JSR		ROTAR; 
+		MOV		DEST,CUADRO+2; SE CARGA EL DESTINO MODIFICADO
+		MOV		CUADRO+1,FUENT;
+		MOV		CUADRO+2,DEST;
+		LDA		COLUM_C;
+		ADD		#1H;
+		STA		N1; N1=COLUM+1
+		MOV		N1,N2; N2=N1
+		JSR		ROTAR;13
+		MOV		DEST,CUADRO+2; SE CARGA EL DESTINO MODIFICADO
+		LDA		COLUM_C; 
+		ADD		#2H;
+		STA		N2;N2 = COLUM+2
+		JSR		ROTAR;14 
+		MOV		DEST,CUADRO+2; SE CARGA EL DESTINO MODIFICADO
+		MOV		CUADRO+1,DEST;
+		MOV		N2,N1;
+		JSR		ROTAR; 15
+		MOV		DEST,CUADRO+1; SE CARGA EL DESTINO MODIFICADO
+		MOV		N2,N1;
+		LDA		COLUM_C; 
+		ADD		#1H;
+		STA		N2;N2 = COLUM+2
+		JSR		ROTAR; 16
+		MOV		DEST,CUADRO+1; SE CARGA EL DESTINO MODIFICADO
+		JMP     SALIR			
+		
+ROTAR:	MOV		DEST,TEMP;
+		LDA 	N1
+		CBEQA	#7H,N17;
+		CBEQA	#6H,N16;
+		CBEQA	#5H,N15;
+		CBEQA	#4H,N14;
+		CBEQA	#3H,N13;
+		CBEQA	#2H,N12;		
+		CBEQA	#1H,N11;		
+N10:	BRCLR	0,FUENT,DEST0;PREGUNTA
+		JSR		SETN2; LLAMA A SET N2 PARA QUE PONGA EL DESTINO EN 1
+		JMP		FINR		
+DEST0:	
+		;BCLR	0,DEST
+		JMP		FINR
+		
+N11:	BRCLR	1,FUENT,DEST1;PREGUNTA
+		JSR		SETN2; LLAMA A SET N2 PARA QUE PONGA EL DESTINO EN 1
+		JMP		FINR		
+DEST1:	JSR		CLRN2; LLAMA A CLR N2 ARA PONER EL DESTINO EN 0
+		JMP		FINR
+		
+N12:	BRCLR	2,FUENT,DEST2;PREGUNTA
+		JSR		SETN2; LLAMA A SET N2 PARA QUE PONGA EL DESTINO EN 1
+		JMP		FINR		
+DEST2:	JSR		CLRN2; LLAMA A CLR N2 ARA PONER EL DESTINO EN 0
+		JMP		FINR
+		
+N13:	BRCLR	3,FUENT,DEST3;PREGUNTA
+		JSR		SETN2; LLAMA A SET N2 PARA QUE PONGA EL DESTINO EN 1
+		JMP		FINR		
+DEST3:	JSR		CLRN2; LLAMA A CLR N2 ARA PONER EL DESTINO EN 0
+		JMP		FINR
+		
+N14:	BRCLR	4,FUENT,DEST4;PREGUNTA
+		JSR		SETN2; LLAMA A SET N2 PARA QUE PONGA EL DESTINO EN 1
+		JMP		FINR		
+DEST4:	JSR		CLRN2; LLAMA A CLR N2 ARA PONER EL DESTINO EN 0
+		JMP		FINR
+		
+N15:	BRCLR	5,FUENT,DEST5;PREGUNTA
+		JSR		SETN2; LLAMA A SET N2 PARA QUE PONGA EL DESTINO EN 1
+		JMP		FINR		
+DEST5:	JSR		CLRN2; LLAMA A CLR N2 ARA PONER EL DESTINO EN 0
+		JMP		FINR
+		
+N16:	BRCLR	6,FUENT,DEST6;PREGUNTA
+		JSR		SETN2; LLAMA A SET N2 PARA QUE PONGA EL DESTINO EN 1
+		JMP		FINR		
+DEST6:	JSR		CLRN2; LLAMA A CLR N2 ARA PONER EL DESTINO EN 0
+		JMP		FINR
+		
+N17:	BRCLR	7,FUENT,DEST7;PREGUNTA
+		JSR		SETN2; LLAMA A SET N2 PARA QUE PONGA EL DESTINO EN 1
+		JMP		FINR		
+DEST7:	JSR		CLRN2; LLAMA A CLR N2 ARA PONER EL DESTINO EN 0
+FINR:	MOV		TEMP,FUENT	 ;
+		RTS;RETORNA
+
+;-------INICIO DE SUBRUTINA SET BIT N2------
+;------------------------------------------
+SETN2:	LDA 	N2
+		CBEQA	#7H,N2S7;
+		CBEQA	#6H,N2S6;
+		CBEQA	#5H,N2S5;
+		CBEQA	#4H,N2S4;
+		CBEQA	#3H,N2S3;
+		CBEQA	#2H,N2S2;		
+		CBEQA	#1H,N2S1;		
+N2S0:	BSET	0,DEST
+		JMP		SETFIN
+N2S1:	BSET	1,DEST
+		JMP		SETFIN
+N2S2:	BSET	2,DEST
+		JMP		SETFIN
+N2S3:	BSET	3,DEST
+		JMP		SETFIN
+N2S4:	BSET	4,DEST
+		JMP		SETFIN
+N2S5:	BSET	5,DEST
+		JMP		SETFIN
+N2S6:	BSET	6,DEST
+		JMP		SETFIN
+N2S7:	BSET	7,DEST		
+SETFIN:	RTS;
+
+;-------INICIO DE SUBRUTINA CLR BIT N2------
+;------------------------------------------
+CLRN2:	LDA 	N2
+		CBEQA	#7H,N2C7;
+		CBEQA	#6H,N2C6;
+		CBEQA	#5H,N2C5;
+		CBEQA	#4H,N2C4;
+		CBEQA	#3H,N2C3;
+		CBEQA	#2H,N2C2;		
+		CBEQA	#1H,N2C1;		
+N2C0:	BCLR	0,DEST
+		JMP		CLRFIN
+N2C1:	BCLR	1,DEST
+		JMP		CLRFIN
+N2C2:	BCLR	2,DEST
+		JMP		CLRFIN
+N2C3:	BCLR	3,DEST
+		JMP		CLRFIN
+N2C4:	BCLR	4,DEST
+		JMP		CLRFIN
+N2C5:	BCLR	5,DEST
+		JMP		CLRFIN
+N2C6:	BCLR	6,DEST
+		JMP		CLRFIN
+N2C7:	BCLR	7,DEST		
+CLRFIN:	RTS; RETORNA
+
+;--------MOVIMIENTOS----------------------------
+MOVI:	LDA     AUX;
+		CBEQA   #1H,DECR
+		CBEQA   #2H,MOV_IZ
+		DEC		COLUM_C
 		LSR     CUADRO
 		LSR		CUADRO+1
 		LSR     CUADRO+2
-		LSR 	CUADRO+3
-		MOV     #0H,AUX
-		JSR     MAJ1
-		JMP     SALIR		
-ROTAR:
-CAER:
-
-SALIR:  BSET	KBACK,KBISC
-		RTI
-;--------------ORGANIZACION Y ENMASCARADO DATOS LEIDOS---------------------	
-;--------VISUALIZACION DINAMICA ------------------------------
-MOVI:	LDA     AUX
-		CBEQA   #1H,N_DEC
-		DEC		FILA_C;
+	    LSR 	CUADRO+3
+	    JMP     N_DEC
+MOV_IZ:	INC     COLUM_C
+		LSL     CUADRO
+		LSL		CUADRO+1
+		LSL     CUADRO+2
+	    LSL 	CUADRO+3
+	    JMP     N_DEC
+DECR:	DEC		FILA_C;
 N_DEC:	LDX		FILA_C;
 		LDA		TABLERO,X
 		LDX		#0H;
 		AND		CUADRO,X
-		CBEQA	#0H,MAJ1
-		LDA     AUX
-		CBEQA    #1H,MREG
+		CBEQA	#0H,MAJ1;COMPROVACION DERECHA
+		LDA     AUX;
+		CBEQA   #1H,MREG;
+		CBEQA   #2H,MREG2; COMPROVACION IZQUIERDA
 		JMP		MREG1
 MAJ1:	LDX		FILA_C;
 		DECX		  ;
@@ -222,7 +516,8 @@ MAJ1:	LDX		FILA_C;
 		AND		CUADRO,X
 		CBEQA	#0H,MAJ2		
 		LDA     AUX
-		CBEQA    #1H,MREG
+		CBEQA   #1H,MREG
+		CBEQA   #2H,MREG2
 		JMP		MREG1
 MAJ2:	LDX		FILA_C;
 		DECX		  ;
@@ -233,6 +528,7 @@ MAJ2:	LDX		FILA_C;
 		CBEQA	#0H,MAJ3		
 		LDA     AUX
 		CBEQA   #1H,MREG
+    	CBEQA   #2H,MREG2
 		JMP		MREG1	
 MAJ3:	LDX		FILA_C;
 		DECX		  ;
@@ -244,12 +540,20 @@ MAJ3:	LDX		FILA_C;
 		CBEQA	#0H,MORTS		
 		LDA     AUX
 		CBEQA    #1H,MREG
+	    CBEQA   #2H,MREG2
 		JMP		MREG1
 MORTS:	RTS				; POSICION VALIDA REGRESA PARA VISUALIZAR	
-MREG1:  LSL		CUADRO
+MREG1:  INC     COLUM_C
+		LSL		CUADRO
 		LSL		CUADRO+1
 		LSL		CUADRO+2
 		LSL		CUADRO+3
+		RTS
+MREG2:  DEC     COLUM_C
+		LSR		CUADRO
+		LSR		CUADRO+1
+		LSR		CUADRO+2
+		LSR		CUADRO+3
 		RTS
 MREG: 	INC		FILA_C	;
 		LDX		FILA_C
@@ -264,108 +568,153 @@ MREG: 	INC		FILA_C	;
 		DEC		FILA_C		;DECREMENTA FILA PARA GUARDAR PERDIENDO PIBOTE 
 		LDX		FILA_C		;
 		LDA		TABLERO,X
-		ORA		CUADRO+2;
+		ORA		CUADRO+2;  HACE LA OR CON EL CUADRO
 		STA		TABLERO,X
 		DEC		FILA_C		;DECREMENTA FILA PARA GUARDAR PERDIENDO PIBOTE 
 		LDX		FILA_C		;
 		LDA		TABLERO,X
 		ORA		CUADRO+3;
 		STA		TABLERO,X
+		JSR		PUNTOS		;LLAMA FUNCION PUNTOS PARA VERIFICAR 
 		MOV		#20D,FILA_C	;
-		RTS					;		
-
-VISUAL:	MOV		#1H,CONT;
-		MOV		#0H,PTCD	;Configuracion UP del reloj del contador		
-CICLOV:	
-;------- AUMENTA CONTEO-----
-		LDA 	CONT
-		CBEQA   #1H,VSALTO	
-		MOV		#8H,PTCD	;POR LO PONEMOS EN CERO
-VSALTO:	;-------------
-		LDHX	#01FEH		; TIEMPO EN ALTO 50 D 
-		JSR	    TIEMPO		;	
-		;-------------
-		MOV		#0H,PTCD	;Configuracion UP del reloj del contador
-		;-------------
-		LDHX	#01FEH		;HACEMOS UN PERIODO DE 50 us
-		JSR	    TIEMPO		;
-		LDA		FILA_C		
-		CBEQ	CONT,VPR	;
-		DECA				;F+1
-		CBEQ	CONT,VPR	;
-		DECA				;F+2
-		CBEQ	CONT,VPR	;
-		DECA				;F+3
-		CBEQ	CONT,VPR;
-		LDX		CONT
-		LDA		TABLERO,X;
-		JMP		VAND  
-VPR:	LDA		FILA_C		;	
+		MOV		#2H,COLUM_C	;
+		MOV     #0H,BAJA_R
+		LDA     AUXX
+		CBEQA   #0H,RAN
+		INC     AUXX
+		RTS
+RAN:	JSR     RANDOM
+		RTS			
+		
+;----------------CICLO VISUAL-----------	
+ VISUAL:LDA		FILA_C		
+		CBEQ	CONT,VPR	;F+3
+		DECA
+		CBEQ	CONT,VPR	;F+2
+		DECA
+		CBEQ	CONT,VPR	;F+1
+		DECA
+		CBEQ	CONT,VPR	;F+0
+CICLOV: CLRH
+		INC     CONT
+		LDX     CONT
+		CBEQX   #11H,TOO
+		
+		LDA     TABLERO,X
+DIB:    CLRH
+		STA     PTBD
+		STA		AUX			;
+		MOV		#0H,PTFD	;
+    	BRCLR	4,AUX,AJ1	;
+		BSET	0,PTFD		;
+AJ1:	BRCLR	5,AUX,AJ2
+		BSET	1,PTFD
+AJ2:	BRCLR	6,AUX,AJ3
+		BSET	4,PTFD
+AJ3:	BRCLR	7,AUX,AJ4
+		BSET	5,PTFD	
+AJ4:	BSET    CLK,PTCD;
+		LDHX    #500D     ; Tiempo de 50ms			
+		JSR		TIEMPO
+		BCLR    CLK,PTCD	
+	    LDHX    #500D     ; Tiempo de 50ms	
+		JSR		TIEMPO;
+	    RTS
+TOO:    MOV     #0D,CONT
+		RTS
+VPR:    LDA		FILA_C		;	
 		SUB     CONT		;
 		PSHA				;PONE EN LA PILA Z
 		LDX		CONT		;CARGA X CON CONTADOR	
+		INCX
 		LDA		TABLERO,X	;X NO SE MODIFICA 
 		PULX		
 		ORA		CUADRO,X	;INCREMENTO PARA COLUMNA+3 EN A 
-VAND:	PSHA				;PONGO EN LA PILA A 
-		;----------------
-		STA		AUX			;
-		MOV		#0H,PTFD	;
-		BRCLR	4H,AUX,AJ1	;
-		BSET	0H,PTFD		;
-AJ1:	BRCLR	5H,AUX,AJ2
-		BSET	1H,PTFD
-AJ2:	BRCLR	6H,AUX,AJ3
-		BSET	4H,PTFD
-AJ3:	BRCLR	7H,AUX,VC
-		BSET	5H,PTFD				
-VC:		PULA				;OBTENGO EL DATO
-		AND		#0FH		;SE ENMASCARA
-		STA		PTBD		; IMPRIME EN EL PUERTO B
-	
-;-----------RENUEVA VARIABLE
-		LDA		CONT		;
-		INCA				;
-		STA		CONT		;		
-		CBEQA	#11H,VFIN	;
-		JMP 	CICLOV		;
-VFIN:	MOV		#08H,PTCD	;Configuracion UP del reloj del contador
-		;-------------
-		LDHX	#01FEH		;HACEMOS UN PERIODO DE 50 us
-		JSR	    TIEMPO;
-		LDA 	CONT
-		MOV		#0H,PTCD	;POR LO PONEMOS EN CERO
-		LDHX	#01EFH; TIEMPO EN ALTO 50 D 
-		JSR	    TIEMPO
-		RTS
+		INC     CONT
+		LDX     CONT
+		CBEQX   #11H,TOO
+		JMP     DIB
+;--------INICIO RUTINA DE TIEMPO------------------------------
+TIEMPO: AIX		#-1D         ; resta 1 a HX
+		CPHX	#0H          ; compara HX con 0
+		BNE		TIEMPO       ; Si hx es igual a 0 sigue
+		RTS                  ; retorna		
 		
-;-------RUTINA PARA RANDOM--------		
-RANDOM: LDA		SEM_1	;
-		LDX		SEM_2	;
-		MUL				;MULTIPLICA
-		PSHX			;
-		PULH			;
-		LDX 	#100D	;
-		DIV				;
+;-------------------PUNTAJE----------------------------
+;-------------------PUNTAJE----------------------------
+PUNTOS: MOV #10101010B,TABLERO+17; SE CARGA CON CEROS
+		MOV	#1H,C1P;
+		MOV	#0H,PUNTEM;PUNTOS LINEALES
+CICLOPU:LDX	C1P;
+		LDA	TABLERO,X;
+		CBEQA	#0FFH,DES;
+		JMP	NDESA;
+DES:	MOV	C1P,C2P;
+CICLOD:	LDX	C2P;
+		INCX		 ;
+		LDA	TABLERO,X;
+		DECX;
+		STA	TABLERO,X;
+		LDA	C2P	;
+		INCA;
+		STA	C2P	;SE AUMENTA CONTADOR
+		CBEQA	#11H,FIND;
+		JMP	CICLOD	;
+FIND:	INC	PUNTEM	; INCREMENTA LOS PUNTOS			
+NDESA:	LDA 	C1P	; CONTADOR PRINCIPAL
+		INCA
+		STA C1P;
+		CBEQA	#11H,EXITCC;
+		JMP		CICLOPU	;
+EXITCC:LDA PUNTEM
+		CBEQA  #0H,IN0L;
+		CBEQA  #1H,IN1L;
+		CBEQA  #2H,IN1L;
+		CBEQA  #3H,IN1L;
+IN4L:	LDA		PUNTAJE;
+		ADD		#0AH;
+		STA		PUNTAJE;
+		JMP		IN0L;
+IN3L:	LDA		PUNTAJE;
+		ADD		#06H;
+		STA		PUNTAJE;
+		JMP		IN0L;
+IN2L:	LDA		PUNTAJE;
+		ADD		#03H;
+		STA		PUNTAJE;
+		JMP		IN0L;
+IN1L:	LDA		PUNTAJE;
+		ADD		#01H;
+		STA		PUNTAJE;
+IN0L:	RTS
+
+;----------------------RANDOM-------------------------
+RANDOM: INC     SEM_1
+		LDA		SEM_1
+		LDX		SEM_2
+		MUL
+		PSHX
+		PULH
+		LDX		#100D
+		DIV
+		PSHH
 		
-		PSHH			;
-		LDX 	#10D	;
-		CLRH			;
-		DIV				;
-		PSHH			;
-		PULA			;	
-		MUL				;
-		
-		MOV    SEM_2,SEM_1
-		STA    SEM_2
+		LDX		#10D
+		CLRH
+		DIV
+		PSHH
+		PULA
+		MUL
+		MOV		SEM_2,SEM_1
+		STA		SEM_2
 		PULA
 		CLRH
-		LDX 	#10D
+		LDX		#10D
 		DIV
-		ADD    SEM_2
-		STA    SEM_2
-		CLRH
-		DIV
+		PSHA
+		ADD		SEM_2
+		STA		SEM_2
+		PULA
 		CBEQA   #0H,SAL_F0
 		CBEQA   #1H,SAL_F1
 		CBEQA   #2H,SAL_F2
@@ -373,7 +722,7 @@ RANDOM: LDA		SEM_1	;
 		CBEQA   #4H,SAL_F4
 		CBEQA   #5H,SAL_F5
 		CBEQA   #6H,SAL_F6
-		JMP    RANDOM
+		JMP 	RANDOM
 SAL_F0: MOV    #00001000B,CUADRO
 		MOV    #00011000B,CUADRO+1
 		MOV    #00010000B,CUADRO+2
@@ -398,27 +747,21 @@ SAL_F3: MOV    #00010000B,CUADRO
 
 SAL_F4: MOV    #00010000B,CUADRO
 		MOV    #00010000B,CUADRO+1
-		MOV    #0011000B,CUADRO+2
+		MOV    #00110000B,CUADRO+2
 		MOV    #00000000B,CUADRO+3
 		RTS
 
 SAL_F5: MOV    #00010000B,CUADRO
 		MOV    #00010000B,CUADRO+1
-		MOV    #0001000B,CUADRO+2
+		MOV    #00010000B,CUADRO+2
 		MOV    #00010000B,CUADRO+3
 		RTS
 
-SAL_F6: MOV    #0000000B,CUADRO
-		MOV    #0000100B,CUADRO+1
+SAL_F6: MOV    #00000000B,CUADRO
+		MOV    #00001000B,CUADRO+1
 		MOV    #00011100B,CUADRO+2
 		MOV    #00000000B,CUADRO+3
 		RTS
-		
-;--------INICIO RUTINA DE TIEMPO------------------------------
-TIEMPO: AIX		#-1D         ; pierde tiempo
-		CPHX	#0H          ; compara HX con 0
-		BNE		TIEMPO       ; Si hx es igual a 0 sigue
-		RTS                  ; retorna
 ;--------RUTINA COMANDO---------------------------------- Envia Informacion a la LCD 
 COMANDO:BCLR	RS,		PTDD					;Mandamos el bit RS del LCD al 0 para saber que vamos a enviar un comando
 		JMP		SALTOLCD						;Pasamos a hacer el pulso del enable
@@ -439,19 +782,21 @@ SALTOLCD:
 		PULH								;Obtiene 
 		PULX								;Datos
 		RTS
-		
-		
+
+
+TABLA_T:FCB 0FFH,238D,132D,228D,46D,224D,82D,82D,50D,82D,119D
+		FCB 228D,36D,228D,36D,238D,128D
+
 TABLAF1:FCB 'LVL: 0 BEST: 0000',0FFH
 TABLAF2:FCB 'POINT: 0000      ',0FFH
 TABLAN:FCB '0','1','2','3','4','5','6','7','8','9',0FFH
-;---------------------------------------------------------------				
-;------VECTORES DE INTERUPCION----------------------------------
+
+;------POSICION DE INICIO----------------------------------
 		ORG		0FFCCH
 		FDB		INT_KBI
 		
 		ORG		0FFFAH
 		FDB		INT_IRQ
-;---------------------------------------------------------------				
-;------POSICION DE INICIO----------------------------------
+
 		ORG     0FFFEH
 		FDB		INICIO
