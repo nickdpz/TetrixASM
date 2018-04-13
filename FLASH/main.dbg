@@ -1,4 +1,4 @@
-	INCLUDE 'MC9S08JM16.INC' 
+    INCLUDE 'MC9S08JM16.INC' 
 ; Based on CPU DB MC9S08JM16_48, version 3.00.048 (RegistersPrg V2.32)
 
 ; ###################################################################
@@ -3274,6 +3274,7 @@ DEST	  DS 1
 N1		  DS 1
 N2		  DS 1
 RANDO	  DS 1
+AUXVEL	  DS 1
 
 		ORG		0C000H; Direccion de RAM  (Memoria para programa)
 
@@ -3376,6 +3377,8 @@ LIM_V:  JSR		RANDOM
 	    MOV 	#0H,PUNTAJE
 		MOV 	#0H,PUNTAJE+1
 		MOV		#1H,RANDO
+		MOV		#0FFH,AUXVEL
+		
 		MOV		#0H,PTFD
 		MOV		#0H,PTBD;
 		BCLR    CLK,PTGD;
@@ -3439,7 +3442,7 @@ CICLOS:	JSR		VISUAL;
 		DBNZ    CONTP,CICLOS;   SALTE A CICLO O HAGA LA LOGICA
 		MOV     #1H,AUX       
 		JSR 	MOVI
-		MOV		#0FH,CONTP;
+		MOV		#05H,CONTP;
 		LDA     AUXX
 		CBEQA   #17D,ETIQ
 		JMP     ETIU1
@@ -3460,23 +3463,30 @@ NEW_P:	MOV		#1D,AUXX
 		JMP     LIM_V
 		
 N_LOSE:	JSR		VISUAL;
-		DBNZ    CONTP,CICLO;   SALTE A CICLO O HAGA LA LOGICA
+		DBNZ    CONTP,N_LOSE
+		LDA		BAJA_R
+		CBEQA   #1H,PK
+		MOV		AUXVEL,CONTP;
+		JMP		NN
+PK:		MOV		#01EH,CONTP;
+NN:		JSR		VISUAL;
+		DBNZ    CONTP,NN
+		
 		LDA     BAJA_R
 		CBEQA   #1H,VELO
-		MOV		#0FFH,CONTP;
+		MOV		AUXVEL,CONTP;
 		MOV     #1H,AUX  
 		LDA		PAUSE  
 		CBEQA   #1H,CICLO      
 		JSR 	MOVI
 		JMP 	CICLO;
 		
-VELO:   MOV		#02FH,CONTP;
+VELO:   MOV		#01EH,CONTP;
 		MOV     #1H,AUX   
 		LDA     PAUSE
 		CBEQA   #1H,CICLO    
 		JSR 	MOVI
 END:	JMP 	CICLO;
-
 ;-------------------INTERRUPCION IRQ------------------------------------		
 INT_IRQ:LDA     AUXX
 		CBEQA   #0H,SALT2
@@ -3860,6 +3870,7 @@ MREG: 	INC		FILA_C	;
 		INC     AUXX
 		RTS
 RAN:	JSR     PUNTOS
+		JSR		C_LVL
 		JSR     P_LCD
 		JSR		RANDOM
 		RTS			
@@ -4022,6 +4033,33 @@ OUT:	PULA
 		MOV		#4D,AUX
 		JMP		DIVI
 OUT1:	RTS
+;----------------CAMBIO LVL-------------------
+C_LVL:	LDA		PUNTAJE
+		CBEQA	#0H,PUN1
+PUN2:	LDA		PUNTAJE+1
+		CBEQA	#0C2H,LVL5
+		CBEQA	#0F4H,LVL6
+		RTS
+LVL5:	MOV		#5H,NIVEL
+		MOV		#6FH,AUXVEL;
+		RTS
+LVL6:	MOV		#6H,NIVEL
+		MOV		#5FH,AUXVEL;
+		RTS
+PUN1:	LDA		PUNTAJE+1
+		CBEQA	#2D,LVL2
+		CBEQA	#5D,LVL3
+		CBEQA	#200D,LVL4
+		RTS
+LVL2:	MOV		#2H,NIVEL
+		MOV		#0CFH,AUXVEL;
+		RTS
+LVL3:	MOV		#3H,NIVEL
+		MOV		#0AFH,AUXVEL;
+		RTS
+LVL4:	MOV		#4H,NIVEL
+		MOV		#8FH,AUXVEL;
+		RTS
 ;----------------------RANDOM-------------------------
 RANDOM: INC     SEM_1
 		LDA		SEM_1
