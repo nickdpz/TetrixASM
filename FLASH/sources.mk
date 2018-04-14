@@ -50,9 +50,7 @@ OBJS_OS_FORMAT :=
 
 # Every subdirectory with source files must be described here
 SUBDIRS := \
+. \
 Sources \
 Project_Settings/Linker_Files \
-PRUEBAS-ROTACION/Sources \
-PRUEBAS-ROTACION/Project_Settings/Linker_Files \
-PRUEBAS-ROTACION/FLASH \
 
